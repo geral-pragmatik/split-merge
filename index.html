@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#000000" />
+  <meta
+    name="description"
+    content="Split. Merge. Repeat. An interactive generative particle system that grows from cold blue to warm red, then converges and cools again."
+  />
+  <link rel="canonical" href="https://split-merge.vercel.app/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://split-merge.vercel.app/" />
+  <meta property="og:title" content="Split / Merge — Interactive Generative Animation" />
+  <meta
+    property="og:description"
+    content="Split. Merge. Repeat. Watch a particle system expand from cold blue to warm red, celebrate at maximum complexity, then converge back to two."
+  />
+  <meta property="og:image" content="https://split-merge.vercel.app/og-preview.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Split / Merge generative particle animation inside a circular arena" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Split / Merge — Interactive Generative Animation" />
+  <meta
+    name="twitter:description"
+    content="A particle system that expands, heats, celebrates, merges and cools — built with HTML Canvas and vanilla JavaScript."
+  />
+  <meta name="twitter:image" content="https://split-merge.vercel.app/og-preview.png" />
+
+  <title>Split / Merge — Interactive Generative Animation</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #000;
+      --fg: #fff;
+      --muted: rgba(255, 255, 255, 0.58);
+      --border: rgba(255, 255, 255, 0.18);
+      --panel: rgba(0, 0, 0, 0.72);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--fg);
+      font-family:
+        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+    }
+
+    body {
+      display: block;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      cursor: crosshair;
+      touch-action: manipulation;
+    }
+
+    .hud {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      right: 18px;
+      z-index: 2;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      justify-content: space-between;
+      gap: 14px;
+      pointer-events: none;
+    }
+
+    .controls,
+    .stats {
+      pointer-events: auto;
+      display: flex;
+      align-items: end;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .controls {
+      flex-wrap: wrap;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    input[type="number"] {
+      width: 92px;
+      min-height: 40px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #080808;
+      color: var(--fg);
+      padding: 7px 9px;
+      font: inherit;
+      font-size: 16px;
+      outline: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: rgba(255, 255, 255, 0.52);
+    }
+
+    input[type="range"] {
+      width: 110px;
+      min-height: 40px;
+    }
+
+    button {
+      min-height: 40px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      color: #000;
+      padding: 0 14px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #e8e8e8;
+    }
+
+    .stats {
+      align-items: center;
+      gap: 14px;
+      font-size: 13px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 16px;
+      line-height: 1.1;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .status {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      z-index: 2;
+      transform: translateX(-50%);
+      pointer-events: none;
+      max-width: calc(100vw - 36px);
+      padding: 9px 13px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      white-space: nowrap;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+
+    .identity {
+      position: fixed;
+      top: 22px;
+      left: 50%;
+      z-index: 2;
+      transform: translateX(-50%);
+      display: grid;
+      gap: 3px;
+      text-align: center;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+
+    .identity strong {
+      font-size: 13px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .identity span {
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .hud,
+    .status {
+      transition: opacity 180ms ease;
+    }
+
+    body.recording-mode .hud,
+    body.recording-mode .status,
+    body.recording-mode .identity {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .record-hint {
+      display: none;
+    }
+
+    @media (max-width: 680px) {
+      .hud {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        align-items: stretch;
+      }
+
+      .controls,
+      .stats {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .status {
+        bottom: 10px;
+        font-size: 11px;
+      }
+
+      .identity {
+        top: 142px;
+      }
+
+      .identity span {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .status::after {
+        content: " · reduced-motion preference detected";
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas
+    id="canvas"
+    aria-label="Circular particle animation where balls split on collision, merge after reaching a maximum, and leave fading trails."
+  ></canvas>
+
+  <div id="identity" class="identity" aria-hidden="true">
+    <strong>Split / Merge</strong>
+    <span>Complexity expands. Convergence restores.</span>
+  </div>
+
+  <div class="hud">
+    <div class="controls">
+      <label>
+        Maximum balls
+        <input id="maxBalls" type="number" min="4" max="512" step="1" value="256" />
+      </label>
+
+      <label>
+        Trail
+        <input id="trail" type="range" min="2" max="30" step="1" value="9" />
+      </label>
+
+      <button id="apply" type="button">Apply</button>
+      <button id="recordMode" type="button">Record mode</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <strong id="count">0</strong>
+        <span>balls</span>
+      </div>
+      <div class="stat">
+        <strong id="phase">Ready</strong>
+        <span>phase</span>
+      </div>
+      <div class="stat">
+        <strong id="temperature">Cold</strong>
+        <span>temperature</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="status" class="status" aria-live="polite">
+    Click inside the circle to begin · click to pause/resume · double-click to restart
+  </div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d", { alpha: false });
+
+      const countEl = document.getElementById("count");
+      const phaseEl = document.getElementById("phase");
+      const temperatureEl = document.getElementById("temperature");
+      const statusEl = document.getElementById("status");
+      const maxInput = document.getElementById("maxBalls");
+      const trailInput = document.getElementById("trail");
+      const applyBtn = document.getElementById("apply");
+      const recordModeBtn = document.getElementById("recordMode");
+
+      const BALL_RADIUS = 4;
+      const SPEED = 2.45;
+      const MIN_BALLS = 2;
+      const MAX_ALLOWED = 512;
+      const COLLISION_COOLDOWN = 12;
+      const CELEBRATION_MS = 3000;
+      const CLICK_DELAY = 230;
+
+      let maxBalls = 256;
+      let trailFade = 0.09;
+      let recordingMode = false;
+
+      let balls = [];
+      let mode = "split";
+      let celebration = null;
+      let celebrationStarted = 0;
+
+      let started = false;
+      let stopped = false;
+      let clickTimer = null;
+      let nextId = 1;
+      let lastTime = performance.now();
+
+      function width() {
+        return window.innerWidth;
+      }
+
+      function height() {
+        return window.innerHeight;
+      }
+
+      function centerX() {
+        return width() / 2;
+      }
+
+      function centerY() {
+        return height() / 2;
+      }
+
+      function arenaRadius() {
+        const reservedTop = 150;
+        const reservedBottom = 70;
+        const usableHeight = Math.max(220, height() - reservedTop - reservedBottom);
+
+        return Math.max(
+          90,
+          Math.min(width() * 0.44, usableHeight * 0.5)
+        );
+      }
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        canvas.width = Math.max(1, Math.floor(width() * dpr));
+        canvas.height = Math.max(1, Math.floor(height() * dpr));
+        canvas.style.width = width() + "px";
+        canvas.style.height = height() + "px";
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, width(), height());
+
+        for (const ball of balls) {
+          const p = clampInside(ball.x, ball.y);
+          ball.x = p.x;
+          ball.y = p.y;
+        }
+      }
+
+      function isInside(x, y, margin = 0) {
+        return (
+          Math.hypot(x - centerX(), y - centerY()) <=
+          arenaRadius() - margin
+        );
+      }
+
+      function clampInside(x, y, margin = BALL_RADIUS + 2) {
+        const dx = x - centerX();
+        const dy = y - centerY();
+        const distance = Math.hypot(dx, dy);
+        const limit = arenaRadius() - margin;
+
+        if (distance <= limit || distance === 0) {
+          return { x, y };
+        }
+
+        return {
+          x: centerX() + (dx / distance) * limit,
+          y: centerY() + (dy / distance) * limit,
+        };
+      }
+
+      function makeBall(x, y, angle, cooldown = COLLISION_COOLDOWN) {
+        const p = clampInside(x, y);
+
+        return {
+          id: nextId++,
+          x: p.x,
+          y: p.y,
+          vx: Math.cos(angle) * SPEED,
+          vy: Math.sin(angle) * SPEED,
+          cooldown,
+        };
+      }
+
+      function updateUI(now = performance.now()) {
+        countEl.textContent = String(balls.length);
+
+        const p = maxBalls <= MIN_BALLS
+          ? 0
+          : Math.max(
+              0,
+              Math.min(
+                1,
+                (balls.length - MIN_BALLS) /
+                (maxBalls - MIN_BALLS)
+              )
+            );
+
+        if (p < 0.2) temperatureEl.textContent = "Cold";
+        else if (p < 0.5) temperatureEl.textContent = "Cool";
+        else if (p < 0.75) temperatureEl.textContent = "Warm";
+        else temperatureEl.textContent = "Hot";
+
+        if (!started) {
+          phaseEl.textContent = "Ready";
+          statusEl.textContent =
+            "Click inside the circle to begin · click to pause/resume · double-click to restart";
+          return;
+        }
+
+        if (stopped) {
+          phaseEl.textContent = "Paused";
+          statusEl.textContent = "Paused · click to continue · double-click to restart";
+          return;
+        }
+
+        if (celebration) {
+          const remaining = Math.max(
+            0,
+            (CELEBRATION_MS - (now - celebrationStarted)) / 1000
+          );
+
+          if (celebration === "max") {
+            phaseEl.textContent = "Celebrate";
+            statusEl.textContent =
+              `Maximum reached (${maxBalls}) · ${remaining.toFixed(1)}s`;
+          } else {
+            phaseEl.textContent = "Celebrate";
+            statusEl.textContent =
+              `Two remain · ${remaining.toFixed(1)}s`;
+          }
+
+          return;
+        }
+
+        if (mode === "split") {
+          phaseEl.textContent = "Split";
+          statusEl.textContent = `Collision → split · growing toward ${maxBalls}`;
+        } else {
+          phaseEl.textContent = "Merge";
+          statusEl.textContent = "Collision → merge · converging toward 2";
+        }
+      }
+
+      function start(x, y) {
+        const origin = clampInside(x, y, 40);
+
+        balls = [];
+        nextId = 1;
+        mode = "split";
+        celebration = null;
+        started = true;
+        stopped = false;
+
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, width(), height());
+
+        const angle = Math.random() * Math.PI * 2;
+        const offset = 28;
+
+        const dx = Math.cos(angle) * offset;
+        const dy = Math.sin(angle) * offset;
+
+        const a = clampInside(origin.x - dx, origin.y - dy, 12);
+        const b = clampInside(origin.x + dx, origin.y + dy, 12);
+
+        const towardB = Math.atan2(b.y - a.y, b.x - a.x);
+        const towardA = Math.atan2(a.y - b.y, a.x - b.x);
+
+        balls.push(makeBall(a.x, a.y, towardB, 4));
+        balls.push(makeBall(b.x, b.y, towardA, 4));
+
+        updateUI();
+      }
+
+      function beginCelebration(type) {
+        celebration = type;
+        celebrationStarted = performance.now();
+        updateUI(celebrationStarted);
+      }
+
+      function aimTwoTogether() {
+        if (balls.length !== 2) return;
+
+        const a = balls[0];
+        const b = balls[1];
+
+        const angleAB = Math.atan2(b.y - a.y, b.x - a.x);
+        const angleBA = Math.atan2(a.y - b.y, a.x - b.x);
+
+        a.vx = Math.cos(angleAB) * SPEED;
+        a.vy = Math.sin(angleAB) * SPEED;
+
+        b.vx = Math.cos(angleBA) * SPEED;
+        b.vy = Math.sin(angleBA) * SPEED;
+
+        a.cooldown = 5;
+        b.cooldown = 5;
+      }
+
+      function finishCelebration() {
+        if (celebration === "max") {
+          celebration = null;
+          mode = "merge";
+
+          for (const ball of balls) {
+            ball.cooldown = Math.floor(Math.random() * 6);
+          }
+        } else {
+          celebration = null;
+          mode = "split";
+          aimTwoTogether();
+        }
+
+        updateUI();
+      }
+
+      function bounceOnCircle(ball) {
+        const dx = ball.x - centerX();
+        const dy = ball.y - centerY();
+        const distance = Math.hypot(dx, dy);
+        const limit = arenaRadius() - BALL_RADIUS;
+
+        if (distance < limit || distance === 0) return;
+
+        const nx = dx / distance;
+        const ny = dy / distance;
+
+        ball.x = centerX() + nx * (limit - 0.5);
+        ball.y = centerY() + ny * (limit - 0.5);
+
+        const dot = ball.vx * nx + ball.vy * ny;
+
+        ball.vx -= 2 * dot * nx;
+        ball.vy -= 2 * dot * ny;
+      }
+
+      function splitPair(a, b) {
+        const center = clampInside(
+          (a.x + b.x) / 2,
+          (a.y + b.y) / 2,
+          12
+        );
+
+        const room = maxBalls - (balls.length - 2);
+        const amount = Math.max(2, Math.min(4, room));
+        const base = Math.random() * Math.PI * 2;
+        const result = [];
+
+        for (let i = 0; i < amount; i++) {
+          const angle =
+            base +
+            i * (Math.PI * 2 / amount) +
+            (Math.random() - 0.5) * 0.25;
+
+          const p = clampInside(
+            center.x + Math.cos(angle) * (BALL_RADIUS + 5),
+            center.y + Math.sin(angle) * (BALL_RADIUS + 5)
+          );
+
+          result.push(makeBall(p.x, p.y, angle));
+        }
+
+        return result;
+      }
+
+      function mergePair(a, b) {
+        const p = clampInside(
+          (a.x + b.x) / 2,
+          (a.y + b.y) / 2
+        );
+
+        let vx = a.vx + b.vx;
+        let vy = a.vy + b.vy;
+        let length = Math.hypot(vx, vy);
+
+        if (length < 0.15) {
+          const angle = Math.random() * Math.PI * 2;
+          vx = Math.cos(angle);
+          vy = Math.sin(angle);
+          length = 1;
+        }
+
+        const merged = makeBall(p.x, p.y, 0);
+
+        merged.vx = (vx / length) * SPEED;
+        merged.vy = (vy / length) * SPEED;
+
+        return merged;
+      }
+
+      function processCollisions() {
+        const removed = new Set();
+        const additions = [];
+        const thresholdSq = (BALL_RADIUS * 2) ** 2;
+
+        for (let i = 0; i < balls.length; i++) {
+          const a = balls[i];
+
+          if (removed.has(a.id) || a.cooldown > 0) continue;
+
+          for (let j = i + 1; j < balls.length; j++) {
+            const b = balls[j];
+
+            if (removed.has(b.id) || b.cooldown > 0) continue;
+
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const distanceSq = dx * dx + dy * dy;
+
+            if (distanceSq > thresholdSq) continue;
+
+            const distance = Math.sqrt(distanceSq) || 0.001;
+            const nx = dx / distance;
+            const ny = dy / distance;
+
+            const approaching =
+              (a.vx - b.vx) * nx +
+              (a.vy - b.vy) * ny;
+
+            if (approaching <= 0) continue;
+
+            removed.add(a.id);
+            removed.add(b.id);
+
+            if (mode === "split") {
+              additions.push(...splitPair(a, b));
+            } else {
+              additions.push(mergePair(a, b));
+            }
+
+            break;
+          }
+        }
+
+        if (!removed.size) return;
+
+        balls = balls.filter((ball) => !removed.has(ball.id));
+        balls.push(...additions);
+
+        if (mode === "split" && balls.length >= maxBalls) {
+          balls = balls.slice(0, maxBalls);
+          beginCelebration("max");
+          return;
+        }
+
+        if (mode === "merge" && balls.length <= MIN_BALLS) {
+          balls = balls.slice(0, MIN_BALLS);
+          beginCelebration("min");
+          return;
+        }
+
+        updateUI();
+      }
+
+      function update(dt, now) {
+        if (!started || stopped) return;
+
+        if (celebration) {
+          if (now - celebrationStarted >= CELEBRATION_MS) {
+            finishCelebration();
+          }
+          return;
+        }
+
+        const factor = Math.min(dt / 16.667, 2.2);
+
+        for (const ball of balls) {
+          if (ball.cooldown > 0) {
+            ball.cooldown--;
+          }
+
+          ball.x += ball.vx * factor;
+          ball.y += ball.vy * factor;
+
+          bounceOnCircle(ball);
+        }
+
+        processCollisions();
+      }
+
+      function fadePreviousFrame() {
+        ctx.fillStyle = `rgba(0, 0, 0, ${trailFade})`;
+        ctx.fillRect(0, 0, width(), height());
+      }
+
+      function drawArena() {
+        ctx.strokeStyle = "rgba(255,255,255,0.44)";
+        ctx.lineWidth = 1.5;
+
+        ctx.beginPath();
+        ctx.arc(
+          centerX(),
+          centerY(),
+          arenaRadius(),
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+      }
+
+      function temperatureProgress() {
+        if (maxBalls <= MIN_BALLS) return 0;
+
+        return Math.max(
+          0,
+          Math.min(
+            1,
+            (balls.length - MIN_BALLS) /
+            (maxBalls - MIN_BALLS)
+          )
+        );
+      }
+
+      function currentColor() {
+        const p = temperatureProgress();
+
+        // Cold blue -> cyan -> violet -> orange/red.
+        // The piece heats up as the population grows and cools as it merges.
+        const stops = [
+          { p: 0.00, h: 210, s: 95, l: 66 }, // icy blue
+          { p: 0.25, h: 185, s: 95, l: 62 }, // cyan
+          { p: 0.55, h: 275, s: 88, l: 66 }, // violet
+          { p: 0.78, h: 32,  s: 96, l: 60 }, // orange
+          { p: 1.00, h: 8,   s: 95, l: 58 }  // warm red
+        ];
+
+        let a = stops[0];
+        let b = stops[stops.length - 1];
+
+        for (let i = 0; i < stops.length - 1; i++) {
+          if (p >= stops[i].p && p <= stops[i + 1].p) {
+            a = stops[i];
+            b = stops[i + 1];
+            break;
+          }
+        }
+
+        const span = Math.max(0.0001, b.p - a.p);
+        const t = (p - a.p) / span;
+
+        // Interpolate hue through the shortest visible path for each segment.
+        const h = a.h + (b.h - a.h) * t;
+        const s = a.s + (b.s - a.s) * t;
+        const l = a.l + (b.l - a.l) * t;
+
+        return `hsl(${h}, ${s}%, ${l}%)`;
+      }
+
+      function drawBall(ball) {
+        ctx.fillStyle = currentColor();
+        ctx.beginPath();
+        ctx.arc(
+          ball.x,
+          ball.y,
+          BALL_RADIUS,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+      }
+
+      function drawSpark(ball, now) {
+        drawBall(ball);
+
+        const pulse =
+          0.5 +
+          0.5 * Math.sin(now * 0.014 + ball.id * 1.7);
+
+        const isTwo = celebration === "min";
+        const rays = isTwo ? 10 : 5;
+
+        if (isTwo) {
+          ctx.strokeStyle =
+            `rgba(150,230,255,${0.30 + pulse * 0.70})`;
+        } else {
+          ctx.strokeStyle =
+            `rgba(255,220,135,${0.30 + pulse * 0.70})`;
+        }
+
+        ctx.lineWidth = isTwo ? 1.4 : 1;
+
+        for (let i = 0; i < rays; i++) {
+          const angle =
+            now * 0.002 +
+            ball.id +
+            i * Math.PI * 2 / rays;
+
+          const inner = BALL_RADIUS + 4;
+          const outer =
+            BALL_RADIUS +
+            8 +
+            pulse * (isTwo ? 18 : 9);
+
+          ctx.beginPath();
+          ctx.moveTo(
+            ball.x + Math.cos(angle) * inner,
+            ball.y + Math.sin(angle) * inner
+          );
+          ctx.lineTo(
+            ball.x + Math.cos(angle) * outer,
+            ball.y + Math.sin(angle) * outer
+          );
+          ctx.stroke();
+        }
+      }
+
+      function draw(now) {
+        fadePreviousFrame();
+        drawArena();
+
+        for (const ball of balls) {
+          if (celebration) {
+            drawSpark(ball, now);
+          } else {
+            drawBall(ball);
+          }
+        }
+      }
+
+      function loop(now) {
+        const dt = now - lastTime;
+        lastTime = now;
+
+        update(dt, now);
+        draw(now);
+
+        if (celebration) {
+          updateUI(now);
+        }
+
+        requestAnimationFrame(loop);
+      }
+
+      function pointerPosition(event) {
+        const rect = canvas.getBoundingClientRect();
+
+        return {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        };
+      }
+
+      function setRecordingMode(enabled) {
+        recordingMode = enabled;
+        document.body.classList.toggle("recording-mode", enabled);
+
+        if (enabled) {
+          // Clear old UI/trail residue so a screen recording starts cleanly.
+          ctx.fillStyle = "#000";
+          ctx.fillRect(0, 0, width(), height());
+        }
+
+        if (!enabled) {
+          updateUI();
+        }
+      }
+
+      function applySettings() {
+        let parsedMax = Number.parseInt(maxInput.value, 10);
+
+        if (!Number.isFinite(parsedMax)) {
+          parsedMax = maxBalls;
+        }
+
+        maxBalls = Math.max(
+          4,
+          Math.min(MAX_ALLOWED, parsedMax)
+        );
+
+        maxInput.value = String(maxBalls);
+
+        const parsedTrail = Math.max(
+          2,
+          Math.min(
+            30,
+            Number.parseInt(trailInput.value, 10) || 9
+          )
+        );
+
+        trailFade = parsedTrail / 100;
+
+        if (
+          started &&
+          mode === "split" &&
+          balls.length >= maxBalls &&
+          !celebration
+        ) {
+          balls = balls.slice(0, maxBalls);
+          beginCelebration("max");
+        }
+
+        updateUI();
+      }
+
+      applyBtn.addEventListener("click", applySettings);
+
+      recordModeBtn.addEventListener("click", () => {
+        setRecordingMode(true);
+      });
+
+      maxInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          applySettings();
+        }
+      });
+
+      canvas.addEventListener("click", (event) => {
+        clearTimeout(clickTimer);
+
+        const p = pointerPosition(event);
+
+        if (recordingMode && !isInside(p.x, p.y, 4)) {
+          setRecordingMode(false);
+          return;
+        }
+
+        if (!isInside(p.x, p.y, 4)) {
+          statusEl.textContent = "Click inside the circle";
+          return;
+        }
+
+        clickTimer = setTimeout(() => {
+          if (!started) {
+            start(p.x, p.y);
+          } else {
+            stopped = !stopped;
+            lastTime = performance.now();
+            updateUI();
+          }
+        }, CLICK_DELAY);
+      });
+
+      canvas.addEventListener("dblclick", (event) => {
+        event.preventDefault();
+        clearTimeout(clickTimer);
+
+        const p = pointerPosition(event);
+
+        if (recordingMode && !isInside(p.x, p.y, 4)) {
+          setRecordingMode(false);
+          return;
+        }
+
+        if (!isInside(p.x, p.y, 4)) {
+          statusEl.textContent =
+            "Double-click inside the circle";
+          return;
+        }
+
+        start(p.x, p.y);
+      });
+
+      window.addEventListener("resize", resize);
+
+      resize();
+      updateUI();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
