@@ -288,6 +288,11 @@
         <input id="trail" type="range" min="2" max="30" step="1" value="9" />
       </label>
 
+      <label>
+        Gravity
+        <input id="gravity" type="range" min="0" max="100" step="1" value="34" />
+      </label>
+
       <button id="apply" type="button">Apply</button>
       <button id="recordMode" type="button">Record mode</button>
     </div>
@@ -309,7 +314,7 @@
   </div>
 
   <div id="status" class="status" aria-live="polite">
-    Click inside the circle to begin · click to pause/resume · double-click to restart
+    Click to begin · move pointer to attract · hold for stronger gravity · click to pause/resume · double-click to restart
   </div>
 
   <script>
@@ -323,6 +328,7 @@
       const statusEl = document.getElementById("status");
       const maxInput = document.getElementById("maxBalls");
       const trailInput = document.getElementById("trail");
+      const gravityInput = document.getElementById("gravity");
       const applyBtn = document.getElementById("apply");
       const recordModeBtn = document.getElementById("recordMode");
 
@@ -336,7 +342,15 @@
 
       let maxBalls = 256;
       let trailFade = 0.09;
+      let gravityStrength = 0.34;
       let recordingMode = false;
+
+      const gravity = {
+        active: false,
+        pressed: false,
+        x: 0,
+        y: 0
+      };
 
       let balls = [];
       let mode = "split";
@@ -454,7 +468,7 @@
         if (!started) {
           phaseEl.textContent = "Ready";
           statusEl.textContent =
-            "Click inside the circle to begin · click to pause/resume · double-click to restart";
+            "Click to begin · move pointer to attract · hold for stronger gravity · click to pause/resume · double-click to restart";
           return;
         }
 
@@ -485,10 +499,10 @@
 
         if (mode === "split") {
           phaseEl.textContent = "Split";
-          statusEl.textContent = `Collision → split · growing toward ${maxBalls}`;
+          statusEl.textContent = `Collision → split · move pointer to attract · growing toward ${maxBalls}`;
         } else {
           phaseEl.textContent = "Merge";
-          statusEl.textContent = "Collision → merge · converging toward 2";
+          statusEl.textContent = "Collision → merge · move pointer to attract · converging toward 2";
         }
       }
 
@@ -703,6 +717,42 @@
         updateUI();
       }
 
+      function applyGravity(ball, factor) {
+        if (!gravity.active || gravityStrength <= 0) return;
+
+        const dx = gravity.x - ball.x;
+        const dy = gravity.y - ball.y;
+        const distanceSq = dx * dx + dy * dy;
+
+        // Avoid unstable acceleration when a particle is directly under the pointer.
+        if (distanceSq < 64) return;
+
+        const distance = Math.sqrt(distanceSq);
+        const nx = dx / distance;
+        const ny = dy / distance;
+
+        // Soft inverse-distance attraction. Holding down amplifies the pull.
+        const normalizedDistance = Math.max(0.16, distance / arenaRadius());
+        const holdBoost = gravity.pressed ? 2.6 : 1.0;
+        const force =
+          gravityStrength *
+          holdBoost *
+          0.075 /
+          normalizedDistance;
+
+        ball.vx += nx * force * factor;
+        ball.vy += ny * force * factor;
+
+        // Keep the animation energetic but bounded.
+        const speed = Math.hypot(ball.vx, ball.vy);
+        const maxSpeed = gravity.pressed ? SPEED * 2.1 : SPEED * 1.55;
+
+        if (speed > maxSpeed) {
+          ball.vx = (ball.vx / speed) * maxSpeed;
+          ball.vy = (ball.vy / speed) * maxSpeed;
+        }
+      }
+
       function update(dt, now) {
         if (!started || stopped) return;
 
@@ -719,6 +769,8 @@
           if (ball.cooldown > 0) {
             ball.cooldown--;
           }
+
+          applyGravity(ball, factor);
 
           ball.x += ball.vx * factor;
           ball.y += ball.vy * factor;
@@ -930,6 +982,16 @@
 
         trailFade = parsedTrail / 100;
 
+        const parsedGravity = Math.max(
+          0,
+          Math.min(
+            100,
+            Number.parseInt(gravityInput.value, 10) || 0
+          )
+        );
+
+        gravityStrength = parsedGravity / 100;
+
         if (
           started &&
           mode === "split" &&
@@ -953,6 +1015,59 @@
         if (event.key === "Enter") {
           applySettings();
         }
+      });
+
+      function updateGravityFromPointer(event) {
+        const p = pointerPosition(event);
+
+        gravity.x = p.x;
+        gravity.y = p.y;
+        gravity.active = isInside(p.x, p.y, BALL_RADIUS + 2);
+      }
+
+      canvas.addEventListener("pointermove", (event) => {
+        updateGravityFromPointer(event);
+      });
+
+      canvas.addEventListener("pointerenter", (event) => {
+        updateGravityFromPointer(event);
+      });
+
+      canvas.addEventListener("pointerleave", () => {
+        gravity.active = false;
+        gravity.pressed = false;
+      });
+
+      canvas.addEventListener("pointerdown", (event) => {
+        updateGravityFromPointer(event);
+
+        if (gravity.active) {
+          gravity.pressed = true;
+
+          if (canvas.setPointerCapture) {
+            try {
+              canvas.setPointerCapture(event.pointerId);
+            } catch (_) {}
+          }
+        }
+      });
+
+      canvas.addEventListener("pointerup", (event) => {
+        gravity.pressed = false;
+        updateGravityFromPointer(event);
+
+        if (canvas.releasePointerCapture) {
+          try {
+            if (canvas.hasPointerCapture(event.pointerId)) {
+              canvas.releasePointerCapture(event.pointerId);
+            }
+          } catch (_) {}
+        }
+      });
+
+      canvas.addEventListener("pointercancel", () => {
+        gravity.active = false;
+        gravity.pressed = false;
       });
 
       canvas.addEventListener("click", (event) => {
