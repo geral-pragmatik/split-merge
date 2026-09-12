@@ -13,8 +13,6 @@
     property="og:description"
     content="Two particles expand into a hot 3D swarm, celebrate at maximum complexity, then merge and cool back to two."
   />
-  <meta property="og:image" content="og-preview.png" />
-  <meta name="twitter:card" content="summary_large_image" />
 
   <title>Split / Merge 3D</title>
 
@@ -60,6 +58,31 @@
       height: 100%;
     }
 
+    .onboarding {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 12;
+      pointer-events: none;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      letter-spacing: 0.28em;
+      color: rgba(255, 255, 255, 0.75);
+      text-transform: uppercase;
+      transition: opacity 500ms ease;
+      animation: pulseOnboard 2.2s ease-in-out infinite;
+    }
+
+    .onboarding.hidden {
+      opacity: 0;
+    }
+
+    @keyframes pulseOnboard {
+      0%, 100% { opacity: 0.25; transform: scale(0.98); }
+      50% { opacity: 0.85; transform: scale(1.02); }
+    }
+
     #hud {
       position: fixed;
       bottom: 24px;
@@ -83,6 +106,49 @@
       font-weight: 700;
       color: rgba(255, 255, 255, 0.85);
       margin-bottom: 3px;
+    }
+
+    .controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 15;
+      display: flex;
+      gap: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 400ms ease;
+    }
+
+    .controls.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .ctrl-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 16px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      user-select: none;
+      transition: background 200ms ease, border-color 200ms ease, transform 150ms ease;
+    }
+
+    .ctrl-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+
+    .ctrl-btn:active {
+      transform: scale(0.92);
     }
 
     .error {
@@ -110,9 +176,18 @@
 <body>
   <div id="stage" aria-label="Interactive 3D split and merge particle animation"></div>
 
+  <div id="onboarding" class="onboarding">
+    <span>Tap to begin</span>
+  </div>
+
   <div id="hud">
     <div id="hudState">SPLIT</div>
     <div id="hudCount">PARTICLES: 2 / 256</div>
+  </div>
+
+  <div id="controls" class="controls">
+    <button id="btnMute" class="ctrl-btn" aria-label="Mute audio" title="Toggle Audio">🔊</button>
+    <button id="btnRestart" class="ctrl-btn" aria-label="Restart cycle" title="Restart Simulation">↺</button>
   </div>
 
   <div id="error" class="error">
@@ -139,6 +214,13 @@
       const hudEl = document.getElementById("hud");
       const hudStateEl = document.getElementById("hudState");
       const hudCountEl = document.getElementById("hudCount");
+      const onboardingEl = document.getElementById("onboarding");
+      const controlsEl = document.getElementById("controls");
+      const btnMute = document.getElementById("btnMute");
+      const btnRestart = document.getElementById("btnRestart");
+
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const isMobile = window.innerWidth < 900 || ('ontouchstart' in window);
 
       try {
         const stage = document.getElementById("stage");
@@ -159,6 +241,7 @@
         let gravityStrength = 0.36;
         let trailLength = 18;
         let cameraShake = 0;
+        let isMuted = false;
 
         const MAX_ARENA_RADIUS = ARENA_RADIUS * 1.075;
         const MIN_ARENA_RADIUS = ARENA_RADIUS * 0.25;
@@ -180,7 +263,6 @@
         let celebration = null;
         let celebrationStarted = 0;
         let started = false;
-        let paused = false;
         let lastFrame = performance.now();
         let trailTick = 0;
 
@@ -189,11 +271,7 @@
           startedAt: 0,
           startX: 0,
           startY: 0,
-          moved: false,
-          lastTapAt: 0,
-          lastTapX: 0,
-          lastTapY: 0,
-          tapTimer: 0
+          moved: false
         };
 
         const pointer = {
@@ -217,7 +295,6 @@
           maxVoices: 18
         };
 
-        // Pentatonic / Lydian scale pitch quantization for harmonic generative sound
         const SCALE_FREQS = [
           130.81, 146.83, 164.81, 196.00, 220.00,
           261.63, 293.66, 329.63, 392.00, 440.00,
@@ -237,15 +314,12 @@
               const AudioContextClass =
                 window.AudioContext || window.webkitAudioContext;
 
-              if (!AudioContextClass) {
-                console.warn("Singularity audio: Web Audio API unavailable");
-                return false;
-              }
+              if (!AudioContextClass) return false;
 
               audioContext = new AudioContextClass();
 
               audioMaster = audioContext.createGain();
-              audioMaster.gain.value = 0.72;
+              audioMaster.gain.value = isMuted ? 0 : 0.72;
 
               audioCompressor = audioContext.createDynamicsCompressor();
               audioCompressor.threshold.value = -18;
@@ -264,13 +338,13 @@
 
             return audioContext.state === "running";
           } catch (error) {
-            console.error("Singularity audio failed to start:", error);
+            console.error("Audio failed to start:", error);
             return false;
           }
         }
 
         function playIgnitionSound() {
-          if (!audioContext || audioContext.state !== "running" || !audioMaster) return;
+          if (!audioContext || audioContext.state !== "running" || !audioMaster || isMuted) return;
 
           const t = audioContext.currentTime;
           const osc = audioContext.createOscillator();
@@ -292,7 +366,7 @@
         }
 
         function createStereoOutput(worldPosition, gainValue) {
-          if (!audioContext || !audioMaster) return null;
+          if (!audioContext || !audioMaster || isMuted) return null;
 
           const gain = audioContext.createGain();
           gain.gain.value = gainValue;
@@ -324,6 +398,7 @@
           if (
             !audioContext ||
             audioContext.state !== "running" ||
+            isMuted ||
             soundState.activeVoices >= soundState.maxVoices
           ) return;
 
@@ -376,7 +451,7 @@
 
           registerVoice(0.18);
 
-          if ("vibrate" in navigator && Math.random() < 0.2) {
+          if ("vibrate" in navigator && !prefersReducedMotion && Math.random() < 0.2) {
             navigator.vibrate(5);
           }
         }
@@ -385,6 +460,7 @@
           if (
             !audioContext ||
             audioContext.state !== "running" ||
+            isMuted ||
             soundState.activeVoices >= soundState.maxVoices
           ) return;
 
@@ -425,18 +501,18 @@
 
           registerVoice(0.21);
 
-          if ("vibrate" in navigator && Math.random() < 0.25) {
+          if ("vibrate" in navigator && !prefersReducedMotion && Math.random() < 0.25) {
             navigator.vibrate(8);
           }
         }
 
         function playRebirthSound(worldPosition) {
-          cameraShake = 0.55;
-          if ("vibrate" in navigator) {
+          cameraShake = prefersReducedMotion ? 0.10 : 0.55;
+          if ("vibrate" in navigator && !prefersReducedMotion) {
             navigator.vibrate([15, 30, 60]);
           }
 
-          if (!audioContext || audioContext.state !== "running") return;
+          if (!audioContext || audioContext.state !== "running" || isMuted) return;
 
           const t = audioContext.currentTime;
 
@@ -515,12 +591,12 @@
         }
 
         function playMaxSound() {
-          cameraShake = 0.40;
-          if ("vibrate" in navigator) {
+          cameraShake = prefersReducedMotion ? 0.08 : 0.40;
+          if ("vibrate" in navigator && !prefersReducedMotion) {
             navigator.vibrate([30, 20, 50]);
           }
 
-          if (!audioContext || audioContext.state !== "running" || !audioMaster) return;
+          if (!audioContext || audioContext.state !== "running" || !audioMaster || isMuted) return;
 
           const t = audioContext.currentTime;
 
@@ -595,8 +671,7 @@
           noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
 
           noise.connect(noiseFilter);
-          noiseFilter.connect(noiseGain);
-          noiseGain.connect(audioMaster);
+          noiseFilter.connect(audioMaster);
 
           const rumble = audioContext.createOscillator();
           const rumbleGain = audioContext.createGain();
@@ -651,14 +726,14 @@
         camera.position.set(0.85, 0.38, 8.7);
 
         const renderer = new THREE.WebGLRenderer({
-          antialias: true,
+          antialias: !isMobile,
           powerPreference: "high-performance"
         });
 
         const renderPixelRatio = () =>
           Math.min(
             window.devicePixelRatio || 1,
-            window.innerWidth < 900 ? 1.35 : 1.65
+            isMobile ? 1.25 : 1.65
           );
 
         renderer.setPixelRatio(renderPixelRatio());
@@ -666,7 +741,8 @@
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.12;
-        renderer.shadowMap.enabled = true;
+
+        renderer.shadowMap.enabled = !isMobile;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         renderer.domElement.style.opacity = "0";
@@ -740,14 +816,14 @@
 
         const bokehPass = new BokehPass(scene, camera, {
           focus: 8.55,
-          aperture: window.innerWidth < 900 ? 0.00028 : 0.00042,
-          maxblur: window.innerWidth < 900 ? 0.0038 : 0.0058
+          aperture: isMobile ? 0.00020 : 0.00042,
+          maxblur: isMobile ? 0.0028 : 0.0058
         });
         composer.addPass(bokehPass);
 
         const bloomPass = new UnrealBloomPass(
           new THREE.Vector2(window.innerWidth, window.innerHeight),
-          window.innerWidth < 900 ? 0.58 : 0.78,
+          isMobile ? 0.52 : 0.78,
           0.42,
           0.72
         );
@@ -757,7 +833,7 @@
           uniforms: {
             tDiffuse: { value: null },
             time: { value: 0 },
-            grainAmount: { value: window.innerWidth < 900 ? 0.016 : 0.012 },
+            grainAmount: { value: isMobile ? 0.012 : 0.012 },
             vignetteAmount: { value: 0.34 }
           },
           vertexShader: `
@@ -801,7 +877,7 @@
 
         const keyLight = new THREE.PointLight(0xffffff, 48, 22, 2);
         keyLight.position.set(4.6, 5.4, 6.2);
-        keyLight.castShadow = true;
+        keyLight.castShadow = !isMobile;
         keyLight.shadow.mapSize.set(1024, 1024);
         keyLight.shadow.bias = -0.0005;
         scene.add(keyLight);
@@ -891,8 +967,8 @@
         const particleMesh = new THREE.InstancedMesh(coreGeometry, coreMaterial, MAX_ALLOWED);
         particleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         particleMesh.count = 0;
-        particleMesh.castShadow = true;
-        particleMesh.receiveShadow = true;
+        particleMesh.castShadow = !isMobile;
+        particleMesh.receiveShadow = !isMobile;
         world.add(particleMesh);
 
         const glowGeometry = new THREE.SphereGeometry(VISUAL_RADIUS * 2.7, 10, 7);
@@ -1059,7 +1135,6 @@
           rebirthStartRadius = MIN_ARENA_RADIUS;
           sparks = [];
           sparkGeometry.setDrawRange(0, 0);
-          paused = false;
           started = true;
 
           const origin = worldPoint ? worldPoint.clone() : new THREE.Vector3();
@@ -1527,7 +1602,7 @@
         function updatePhysics(dt, now) {
           updatePointerWorld();
 
-          if (!started || paused) {
+          if (!started) {
             updateSparks(dt);
             return;
           }
@@ -1733,12 +1808,12 @@
           bokehPass.uniforms.focus.value = 8.55 + 0.12 * Math.sin(now * 0.00035);
 
           if (celebration) {
-            const baseBloom = window.innerWidth < 900 ? 0.70 : 0.88;
+            const baseBloom = isMobile ? 0.58 : 0.88;
             bloomPass.strength = baseBloom + (celebration === "max" ? 0.72 : 1.05) * impact;
             cinematicPass.uniforms.vignetteAmount.value = 0.30 - 0.10 * impact;
             camera.fov = celebration === "max" ? 48 + 1.15 * impact : 48 + 2.45 * impact;
           } else {
-            bloomPass.strength = (window.innerWidth < 900 ? 0.52 : 0.70) + p * 0.10;
+            bloomPass.strength = (isMobile ? 0.52 : 0.70) + p * 0.10;
             cinematicPass.uniforms.vignetteAmount.value = 0.34;
             camera.fov = 48;
           }
@@ -1782,11 +1857,11 @@
 
           controls.update();
 
-          // Camera shake decay and offset calculation
           if (cameraShake > 0.001) {
-            camera.position.x += (Math.random() - 0.5) * cameraShake;
-            camera.position.y += (Math.random() - 0.5) * cameraShake;
-            camera.position.z += (Math.random() - 0.5) * cameraShake;
+            const factor = prefersReducedMotion ? 0.2 : 1.0;
+            camera.position.x += (Math.random() - 0.5) * cameraShake * factor;
+            camera.position.y += (Math.random() - 0.5) * cameraShake * factor;
+            camera.position.z += (Math.random() - 0.5) * cameraShake * factor;
             cameraShake *= 0.88;
           }
         }
@@ -1839,7 +1914,9 @@
 
           requestAnimationFrame(() => {
             renderer.domElement.style.opacity = "1";
+            if (onboardingEl) onboardingEl.classList.add("hidden");
             if (hudEl) hudEl.classList.add("visible");
+            if (controlsEl) controlsEl.classList.add("visible");
           });
 
           if (!animationLoopStarted) {
@@ -1848,6 +1925,27 @@
             requestAnimationFrame(animate);
           }
         }
+
+        btnMute.addEventListener("pointerdown", (e) => e.stopPropagation());
+        btnMute.addEventListener("click", (e) => {
+          e.stopPropagation();
+          isMuted = !isMuted;
+
+          if (audioMaster && audioContext) {
+            audioMaster.gain.setValueAtTime(isMuted ? 0 : 0.72, audioContext.currentTime);
+          }
+
+          btnMute.textContent = isMuted ? "🔇" : "🔊";
+          btnMute.setAttribute("aria-label", isMuted ? "Unmute audio" : "Mute audio");
+        });
+
+        btnRestart.addEventListener("pointerdown", (e) => e.stopPropagation());
+        btnRestart.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (started) {
+            resetAt(new THREE.Vector3(0, 0, 0));
+          }
+        });
 
         renderer.domElement.addEventListener("pointerdown", (event) => {
           event.preventDefault();
@@ -1944,17 +2042,16 @@
           composer.setSize(window.innerWidth, window.innerHeight);
 
           bloomPass.setSize(window.innerWidth, window.innerHeight);
-          bloomPass.strength = window.innerWidth < 900 ? 0.58 : 0.78;
+          bloomPass.strength = isMobile ? 0.52 : 0.78;
 
-          bokehPass.uniforms.aperture.value = window.innerWidth < 900 ? 0.00028 : 0.00042;
-          bokehPass.uniforms.maxblur.value = window.innerWidth < 900 ? 0.0038 : 0.0058;
-          cinematicPass.uniforms.grainAmount.value = window.innerWidth < 900 ? 0.016 : 0.012;
+          bokehPass.uniforms.aperture.value = isMobile ? 0.00020 : 0.00042;
+          bokehPass.uniforms.maxblur.value = isMobile ? 0.0028 : 0.0058;
+          cinematicPass.uniforms.grainAmount.value = 0.012;
 
           controls.update();
         });
 
         started = false;
-        paused = false;
         particles = [];
         particleMesh.count = 0;
         glowMesh.count = 0;
