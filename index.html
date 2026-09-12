@@ -2,1174 +2,1974 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
   <meta
     name="description"
-    content="Split. Merge. Repeat. An interactive generative particle system that grows from cold blue to warm red, then converges and cools again."
+    content="Split / Merge 3D — an immersive generative particle system that expands, contracts and explosively rebirths."
   />
-  <link rel="canonical" href="https://split-merge.vercel.app/" />
-
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://split-merge.vercel.app/" />
-  <meta property="og:title" content="Split / Merge — Interactive Generative Animation" />
+  <meta property="og:title" content="Split / Merge 3D" />
   <meta
     property="og:description"
-    content="Split. Merge. Repeat. Watch a particle system expand from cold blue to warm red, celebrate at maximum complexity, then converge back to two."
+    content="Two particles expand into a hot 3D swarm, celebrate at maximum complexity, then merge and cool back to two."
   />
-  <meta property="og:image" content="https://split-merge.vercel.app/og-preview.png" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="Split / Merge generative particle animation inside a circular arena" />
-
+  <meta property="og:image" content="og-preview.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Split / Merge — Interactive Generative Animation" />
-  <meta
-    name="twitter:description"
-    content="A particle system that expands, heats, celebrates, merges and cools — built with HTML Canvas and vanilla JavaScript."
-  />
-  <meta name="twitter:image" content="https://split-merge.vercel.app/og-preview.png" />
 
-  <title>Split / Merge — Interactive Generative Animation</title>
+  <title>Split / Merge 3D</title>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+      }
+    }
+  </script>
 
   <style>
-    :root {
-      color-scheme: dark;
-      --bg: #000;
-      --fg: #fff;
-      --muted: rgba(255, 255, 255, 0.58);
-      --border: rgba(255, 255, 255, 0.18);
-      --panel: rgba(0, 0, 0, 0.72);
-    }
+    :root { color-scheme: dark; }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
-    html,
-    body {
+    html, body {
       margin: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: var(--bg);
-      color: var(--fg);
-      font-family:
-        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-        "Segoe UI", sans-serif;
+      background: #000;
     }
 
-    body {
-      display: block;
+    #stage {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      touch-action: none;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
-    canvas {
+    #stage:active {
+      cursor: grabbing;
+    }
+
+    #stage canvas {
       display: block;
       width: 100%;
       height: 100%;
-      background: #000;
-      cursor: crosshair;
-      touch-action: manipulation;
     }
 
-    .hud {
+    #hud {
       position: fixed;
-      top: 18px;
-      left: 18px;
-      right: 18px;
-      z-index: 2;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: end;
-      justify-content: space-between;
-      gap: 14px;
+      bottom: 24px;
+      left: 24px;
+      z-index: 10;
       pointer-events: none;
-    }
-
-    .controls,
-    .stats {
-      pointer-events: auto;
-      display: flex;
-      align-items: end;
-      gap: 10px;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: var(--panel);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-
-    .controls {
-      flex-wrap: wrap;
-    }
-
-    label {
-      display: grid;
-      gap: 5px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    input[type="number"] {
-      width: 92px;
-      min-height: 40px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: #080808;
-      color: var(--fg);
-      padding: 7px 9px;
-      font: inherit;
-      font-size: 16px;
-      outline: none;
-    }
-
-    input[type="number"]:focus {
-      border-color: rgba(255, 255, 255, 0.52);
-    }
-
-    input[type="range"] {
-      width: 110px;
-      min-height: 40px;
-    }
-
-    button {
-      min-height: 40px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: #fff;
-      color: #000;
-      padding: 0 14px;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #e8e8e8;
-    }
-
-    .stats {
-      align-items: center;
-      gap: 14px;
-      font-size: 13px;
-    }
-
-    .stat strong {
-      display: block;
-      font-size: 16px;
-      line-height: 1.1;
-    }
-
-    .stat span {
-      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 11px;
-    }
-
-    .status {
-      position: fixed;
-      left: 50%;
-      bottom: 18px;
-      z-index: 2;
-      transform: translateX(-50%);
-      pointer-events: none;
-      max-width: calc(100vw - 36px);
-      padding: 9px 13px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: var(--panel);
-      color: var(--muted);
-      font-size: 12px;
-      text-align: center;
-      white-space: nowrap;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-
-
-    .identity {
-      position: fixed;
-      top: 22px;
-      left: 50%;
-      z-index: 2;
-      transform: translateX(-50%);
-      display: grid;
-      gap: 3px;
-      text-align: center;
-      pointer-events: none;
-      transition: opacity 180ms ease;
-    }
-
-    .identity strong {
-      font-size: 13px;
-      line-height: 1;
-      letter-spacing: 0.22em;
+      letter-spacing: 0.12em;
+      color: rgba(255, 255, 255, 0.45);
       text-transform: uppercase;
-    }
-
-    .identity span {
-      color: var(--muted);
-      font-size: 11px;
-      white-space: nowrap;
-    }
-
-    .hud,
-    .status {
-      transition: opacity 180ms ease;
-    }
-
-    body.recording-mode .hud,
-    body.recording-mode .status,
-    body.recording-mode .identity {
+      transition: opacity 300ms ease;
       opacity: 0;
-      pointer-events: none;
     }
 
-    .record-hint {
+    #hud.visible {
+      opacity: 1;
+    }
+
+    #hudState {
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.85);
+      margin-bottom: 3px;
+    }
+
+    .error {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
       display: none;
+      place-items: center;
+      padding: 24px;
+      background: #000;
+      color: #fff;
+      text-align: center;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    @media (max-width: 680px) {
-      .hud {
-        top: 10px;
-        left: 10px;
-        right: 10px;
-        align-items: stretch;
-      }
+    .error.show { display: grid; }
 
-      .controls,
-      .stats {
-        width: 100%;
-        justify-content: space-between;
-      }
-
-      .status {
-        bottom: 10px;
-        font-size: 11px;
-      }
-
-      .identity {
-        top: 142px;
-      }
-
-      .identity span {
-        display: none;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .status::after {
-        content: " · reduced-motion preference detected";
-      }
+    .error div {
+      max-width: 560px;
+      line-height: 1.5;
     }
   </style>
 </head>
 
 <body>
-  <canvas
-    id="canvas"
-    aria-label="Circular particle animation where balls split on collision, merge after reaching a maximum, and leave fading trails."
-  ></canvas>
+  <div id="stage" aria-label="Interactive 3D split and merge particle animation"></div>
 
-  <div id="identity" class="identity" aria-hidden="true">
-    <strong>Split / Merge</strong>
-    <span>Complexity expands. Convergence restores.</span>
+  <div id="hud">
+    <div id="hudState">SPLIT</div>
+    <div id="hudCount">PARTICLES: 2 / 256</div>
   </div>
 
-  <div class="hud">
-    <div class="controls">
-      <label>
-        Maximum balls
-        <input id="maxBalls" type="number" min="4" max="512" step="1" value="256" />
-      </label>
-
-      <label>
-        Trail
-        <input id="trail" type="range" min="2" max="30" step="1" value="9" />
-      </label>
-
-      <label>
-        Gravity
-        <input id="gravity" type="range" min="0" max="100" step="1" value="34" />
-      </label>
-
-      <button id="apply" type="button">Apply</button>
-      <button id="recordMode" type="button">Record mode</button>
-    </div>
-
-    <div class="stats">
-      <div class="stat">
-        <strong id="count">0</strong>
-        <span>balls</span>
-      </div>
-      <div class="stat">
-        <strong id="phase">Ready</strong>
-        <span>phase</span>
-      </div>
-      <div class="stat">
-        <strong id="temperature">Cold</strong>
-        <span>temperature</span>
-      </div>
+  <div id="error" class="error">
+    <div>
+      <h2>Split / Merge 3D could not start</h2>
+      <p id="errorText">Your browser may not support the required WebGL features.</p>
     </div>
   </div>
 
-  <div id="status" class="status" aria-live="polite">
-    Click to begin · single click pauses/resumes · hold or drag for gravity · double-click restarts
-  </div>
+  <script type="module">
+    import * as THREE from "three";
+    import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+    import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+    import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+    import { BokehPass } from "three/addons/postprocessing/BokehPass.js";
+    import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+    import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+    import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-  <script>
-    (() => {
-      const canvas = document.getElementById("canvas");
-      const ctx = canvas.getContext("2d", { alpha: false });
+    (async () => {
+      const errorBox = document.getElementById("error");
+      const errorText = document.getElementById("errorText");
+      const hudEl = document.getElementById("hud");
+      const hudStateEl = document.getElementById("hudState");
+      const hudCountEl = document.getElementById("hudCount");
 
-      const countEl = document.getElementById("count");
-      const phaseEl = document.getElementById("phase");
-      const temperatureEl = document.getElementById("temperature");
-      const statusEl = document.getElementById("status");
-      const maxInput = document.getElementById("maxBalls");
-      const trailInput = document.getElementById("trail");
-      const gravityInput = document.getElementById("gravity");
-      const applyBtn = document.getElementById("apply");
-      const recordModeBtn = document.getElementById("recordMode");
+      try {
+        const stage = document.getElementById("stage");
 
-      const BALL_RADIUS = 4;
-      const SPEED = 2.45;
-      const MIN_BALLS = 2;
-      const MAX_ALLOWED = 512;
-      const COLLISION_COOLDOWN = 12;
-      const CELEBRATION_MS = 3000;
-      const CLICK_DELAY = 230;
+        const ARENA_RADIUS = 3.0;
+        const VISUAL_RADIUS = 0.075;
+        const COLLISION_DISTANCE = 0.26;
+        const BASE_SPEED = 1.28;
+        const MIN_BALLS = 2;
+        const MAX_ALLOWED = 512;
+        const MAX_EXPANSION_MS = 850;
+        const REBIRTH_EXPLOSION_MS = 900;
+        const POST_EXPLOSION_SETTLE_MS = 1200;
+        const HOLD_THRESHOLD_MS = 220;
+        const MOVE_THRESHOLD_PX = 8;
 
-      let maxBalls = 256;
-      let trailFade = 0.09;
-      let gravityStrength = 0.34;
-      let recordingMode = false;
+        let maxBalls = 256;
+        let gravityStrength = 0.36;
+        let trailLength = 18;
+        let cameraShake = 0;
 
-      const gravity = {
-        active: false,
-        pressed: false,
-        x: 0,
-        y: 0
-      };
+        const MAX_ARENA_RADIUS = ARENA_RADIUS * 1.075;
+        const MIN_ARENA_RADIUS = ARENA_RADIUS * 0.25;
 
-      const gesture = {
-        down: false,
-        startedAt: 0,
-        startX: 0,
-        startY: 0,
-        moved: false,
-        suppressNextClick: false
-      };
+        let currentArenaRadius = ARENA_RADIUS;
+        let postExplosionStarted = 0;
+        let mergeShrinkStarted = 0;
+        let mergeShrinkStartRadius = MAX_ARENA_RADIUS;
+        let finalShrinkStarted = 0;
+        let rebirthStartRadius = MIN_ARENA_RADIUS;
 
-      const HOLD_THRESHOLD_MS = 220;
-      const MOVE_THRESHOLD_PX = 8;
+        const FINAL_MIN_RADIUS = VISUAL_RADIUS + COLLISION_DISTANCE * 0.5 + 0.005;
+        const MERGE_SHRINK_RATE = 0.54;
+        const FINAL_SHRINK_RATE = 0.68;
 
-      let balls = [];
-      let mode = "split";
-      let celebration = null;
-      let celebrationStarted = 0;
+        let particles = [];
+        let nextId = 1;
+        let mode = "split";
+        let celebration = null;
+        let celebrationStarted = 0;
+        let started = false;
+        let paused = false;
+        let lastFrame = performance.now();
+        let trailTick = 0;
 
-      let started = false;
-      let stopped = false;
-      let clickTimer = null;
-      let nextId = 1;
-      let lastTime = performance.now();
-
-      function width() {
-        return window.innerWidth;
-      }
-
-      function height() {
-        return window.innerHeight;
-      }
-
-      function centerX() {
-        return width() / 2;
-      }
-
-      function centerY() {
-        return height() / 2;
-      }
-
-      function arenaRadius() {
-        const reservedTop = 150;
-        const reservedBottom = 70;
-        const usableHeight = Math.max(220, height() - reservedTop - reservedBottom);
-
-        return Math.max(
-          90,
-          Math.min(width() * 0.44, usableHeight * 0.5)
-        );
-      }
-
-      function resize() {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-        canvas.width = Math.max(1, Math.floor(width() * dpr));
-        canvas.height = Math.max(1, Math.floor(height() * dpr));
-        canvas.style.width = width() + "px";
-        canvas.style.height = height() + "px";
-
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-        ctx.fillStyle = "#000";
-        ctx.fillRect(0, 0, width(), height());
-
-        for (const ball of balls) {
-          const p = clampInside(ball.x, ball.y);
-          ball.x = p.x;
-          ball.y = p.y;
-        }
-      }
-
-      function isInside(x, y, margin = 0) {
-        return (
-          Math.hypot(x - centerX(), y - centerY()) <=
-          arenaRadius() - margin
-        );
-      }
-
-      function clampInside(x, y, margin = BALL_RADIUS + 2) {
-        const dx = x - centerX();
-        const dy = y - centerY();
-        const distance = Math.hypot(dx, dy);
-        const limit = arenaRadius() - margin;
-
-        if (distance <= limit || distance === 0) {
-          return { x, y };
-        }
-
-        return {
-          x: centerX() + (dx / distance) * limit,
-          y: centerY() + (dy / distance) * limit,
+        const gesture = {
+          down: false,
+          startedAt: 0,
+          startX: 0,
+          startY: 0,
+          moved: false,
+          lastTapAt: 0,
+          lastTapX: 0,
+          lastTapY: 0,
+          tapTimer: 0
         };
-      }
 
-      function makeBall(x, y, angle, cooldown = COLLISION_COOLDOWN) {
-        const p = clampInside(x, y);
-
-        return {
-          id: nextId++,
-          x: p.x,
-          y: p.y,
-          vx: Math.cos(angle) * SPEED,
-          vy: Math.sin(angle) * SPEED,
-          cooldown,
+        const pointer = {
+          active: false,
+          pressed: false,
+          pointerType: "mouse",
+          ndc: new THREE.Vector2(0, 0),
+          world: new THREE.Vector3(0, 0, 0)
         };
-      }
 
-      function updateUI(now = performance.now()) {
-        countEl.textContent = String(balls.length);
-
-        const p = maxBalls <= MIN_BALLS
-          ? 0
-          : Math.max(
-              0,
-              Math.min(
-                1,
-                (balls.length - MIN_BALLS) /
-                (maxBalls - MIN_BALLS)
-              )
-            );
-
-        if (p < 0.2) temperatureEl.textContent = "Cold";
-        else if (p < 0.5) temperatureEl.textContent = "Cool";
-        else if (p < 0.75) temperatureEl.textContent = "Warm";
-        else temperatureEl.textContent = "Hot";
-
-        if (!started) {
-          phaseEl.textContent = "Ready";
-          statusEl.textContent =
-            "Click to begin · single click pauses/resumes · hold or drag for gravity · double-click restarts";
-          return;
-        }
-
-        if (stopped) {
-          phaseEl.textContent = "Paused";
-          statusEl.textContent = "Paused · click to continue · double-click to restart";
-          return;
-        }
-
-        if (celebration) {
-          const remaining = Math.max(
-            0,
-            (CELEBRATION_MS - (now - celebrationStarted)) / 1000
-          );
-
-          if (celebration === "max") {
-            phaseEl.textContent = "Celebrate";
-            statusEl.textContent =
-              `Maximum reached (${maxBalls}) · ${remaining.toFixed(1)}s`;
-          } else {
-            phaseEl.textContent = "Celebrate";
-            statusEl.textContent =
-              `Two remain · ${remaining.toFixed(1)}s`;
-          }
-
-          return;
-        }
-
-        if (mode === "split") {
-          phaseEl.textContent = "Split";
-          statusEl.textContent = `Collision → split · move pointer to attract · growing toward ${maxBalls}`;
-        } else {
-          phaseEl.textContent = "Merge";
-          statusEl.textContent = "Collision → merge · move pointer to attract · converging toward 2";
-        }
-      }
-
-      function start(x, y) {
-        const origin = clampInside(x, y, 40);
-
-        balls = [];
-        nextId = 1;
-        mode = "split";
-        celebration = null;
-        started = true;
-        stopped = false;
-
-        ctx.fillStyle = "#000";
-        ctx.fillRect(0, 0, width(), height());
-
-        const angle = Math.random() * Math.PI * 2;
-        const offset = 28;
-
-        const dx = Math.cos(angle) * offset;
-        const dy = Math.sin(angle) * offset;
-
-        const a = clampInside(origin.x - dx, origin.y - dy, 12);
-        const b = clampInside(origin.x + dx, origin.y + dy, 12);
-
-        const towardB = Math.atan2(b.y - a.y, b.x - a.x);
-        const towardA = Math.atan2(a.y - b.y, a.x - b.x);
-
-        balls.push(makeBall(a.x, a.y, towardB, 4));
-        balls.push(makeBall(b.x, b.y, towardA, 4));
-
-        updateUI();
-      }
-
-      function beginCelebration(type) {
-        celebration = type;
-        celebrationStarted = performance.now();
-        updateUI(celebrationStarted);
-      }
-
-      function aimTwoTogether() {
-        if (balls.length !== 2) return;
-
-        const a = balls[0];
-        const b = balls[1];
-
-        const angleAB = Math.atan2(b.y - a.y, b.x - a.x);
-        const angleBA = Math.atan2(a.y - b.y, a.x - b.x);
-
-        a.vx = Math.cos(angleAB) * SPEED;
-        a.vy = Math.sin(angleAB) * SPEED;
-
-        b.vx = Math.cos(angleBA) * SPEED;
-        b.vy = Math.sin(angleBA) * SPEED;
-
-        a.cooldown = 5;
-        b.cooldown = 5;
-      }
-
-      function finishCelebration() {
-        if (celebration === "max") {
-          celebration = null;
-          mode = "merge";
-
-          for (const ball of balls) {
-            ball.cooldown = Math.floor(Math.random() * 6);
-          }
-        } else {
-          celebration = null;
-          mode = "split";
-          aimTwoTogether();
-        }
-
-        updateUI();
-      }
-
-      function bounceOnCircle(ball) {
-        const dx = ball.x - centerX();
-        const dy = ball.y - centerY();
-        const distance = Math.hypot(dx, dy);
-        const limit = arenaRadius() - BALL_RADIUS;
-
-        if (distance < limit || distance === 0) return;
-
-        const nx = dx / distance;
-        const ny = dy / distance;
-
-        ball.x = centerX() + nx * (limit - 0.5);
-        ball.y = centerY() + ny * (limit - 0.5);
-
-        const dot = ball.vx * nx + ball.vy * ny;
-
-        ball.vx -= 2 * dot * nx;
-        ball.vy -= 2 * dot * ny;
-      }
-
-      function splitPair(a, b) {
-        const center = clampInside(
-          (a.x + b.x) / 2,
-          (a.y + b.y) / 2,
-          12
-        );
-
-        const room = maxBalls - (balls.length - 2);
-        const amount = Math.max(2, Math.min(4, room));
-        const base = Math.random() * Math.PI * 2;
-        const result = [];
-
-        for (let i = 0; i < amount; i++) {
-          const angle =
-            base +
-            i * (Math.PI * 2 / amount) +
-            (Math.random() - 0.5) * 0.25;
-
-          const p = clampInside(
-            center.x + Math.cos(angle) * (BALL_RADIUS + 5),
-            center.y + Math.sin(angle) * (BALL_RADIUS + 5)
-          );
-
-          result.push(makeBall(p.x, p.y, angle));
-        }
-
-        return result;
-      }
-
-      function mergePair(a, b) {
-        const p = clampInside(
-          (a.x + b.x) / 2,
-          (a.y + b.y) / 2
-        );
-
-        let vx = a.vx + b.vx;
-        let vy = a.vy + b.vy;
-        let length = Math.hypot(vx, vy);
-
-        if (length < 0.15) {
-          const angle = Math.random() * Math.PI * 2;
-          vx = Math.cos(angle);
-          vy = Math.sin(angle);
-          length = 1;
-        }
-
-        const merged = makeBall(p.x, p.y, 0);
-
-        merged.vx = (vx / length) * SPEED;
-        merged.vy = (vy / length) * SPEED;
-
-        return merged;
-      }
-
-      function processCollisions() {
-        const removed = new Set();
-        const additions = [];
-        const thresholdSq = (BALL_RADIUS * 2) ** 2;
-
-        for (let i = 0; i < balls.length; i++) {
-          const a = balls[i];
-
-          if (removed.has(a.id) || a.cooldown > 0) continue;
-
-          for (let j = i + 1; j < balls.length; j++) {
-            const b = balls[j];
-
-            if (removed.has(b.id) || b.cooldown > 0) continue;
-
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
-            const distanceSq = dx * dx + dy * dy;
-
-            if (distanceSq > thresholdSq) continue;
-
-            const distance = Math.sqrt(distanceSq) || 0.001;
-            const nx = dx / distance;
-            const ny = dy / distance;
-
-            const approaching =
-              (a.vx - b.vx) * nx +
-              (a.vy - b.vy) * ny;
-
-            if (approaching <= 0) continue;
-
-            removed.add(a.id);
-            removed.add(b.id);
-
-            if (mode === "split") {
-              additions.push(...splitPair(a, b));
-            } else {
-              additions.push(mergePair(a, b));
-            }
-
-            break;
-          }
-        }
-
-        if (!removed.size) return;
-
-        balls = balls.filter((ball) => !removed.has(ball.id));
-        balls.push(...additions);
-
-        if (mode === "split" && balls.length >= maxBalls) {
-          balls = balls.slice(0, maxBalls);
-          beginCelebration("max");
-          return;
-        }
-
-        if (mode === "merge" && balls.length <= MIN_BALLS) {
-          balls = balls.slice(0, MIN_BALLS);
-          beginCelebration("min");
-          return;
-        }
-
-        updateUI();
-      }
-
-      function applyGravity(ball, factor) {
-        if (!gravity.active || gravityStrength <= 0) return;
-
-        const dx = gravity.x - ball.x;
-        const dy = gravity.y - ball.y;
-        const distanceSq = dx * dx + dy * dy;
-
-        // Avoid unstable acceleration when a particle is directly under the pointer.
-        if (distanceSq < 64) return;
-
-        const distance = Math.sqrt(distanceSq);
-        const nx = dx / distance;
-        const ny = dy / distance;
-
-        // Soft inverse-distance attraction. Holding down amplifies the pull.
-        const normalizedDistance = Math.max(0.16, distance / arenaRadius());
-        const holdBoost = gravity.pressed ? 2.6 : 1.0;
-        const force =
-          gravityStrength *
-          holdBoost *
-          0.075 /
-          normalizedDistance;
-
-        ball.vx += nx * force * factor;
-        ball.vy += ny * force * factor;
-
-        // Keep the animation energetic but bounded.
-        const speed = Math.hypot(ball.vx, ball.vy);
-        const maxSpeed = gravity.pressed ? SPEED * 2.1 : SPEED * 1.55;
-
-        if (speed > maxSpeed) {
-          ball.vx = (ball.vx / speed) * maxSpeed;
-          ball.vy = (ball.vy / speed) * maxSpeed;
-        }
-      }
-
-      function update(dt, now) {
-        if (!started || stopped) return;
-
-        if (celebration) {
-          if (now - celebrationStarted >= CELEBRATION_MS) {
-            finishCelebration();
-          }
-          return;
-        }
-
-        const factor = Math.min(dt / 16.667, 2.2);
-
-        for (const ball of balls) {
-          if (ball.cooldown > 0) {
-            ball.cooldown--;
-          }
-
-          applyGravity(ball, factor);
-
-          ball.x += ball.vx * factor;
-          ball.y += ball.vy * factor;
-
-          bounceOnCircle(ball);
-        }
-
-        processCollisions();
-      }
-
-      function fadePreviousFrame() {
-        ctx.fillStyle = `rgba(0, 0, 0, ${trailFade})`;
-        ctx.fillRect(0, 0, width(), height());
-      }
-
-      function drawArena() {
-        ctx.strokeStyle = "rgba(255,255,255,0.44)";
-        ctx.lineWidth = 1.5;
-
-        ctx.beginPath();
-        ctx.arc(
-          centerX(),
-          centerY(),
-          arenaRadius(),
-          0,
-          Math.PI * 2
-        );
-        ctx.stroke();
-      }
-
-      function temperatureProgress() {
-        if (maxBalls <= MIN_BALLS) return 0;
-
-        return Math.max(
-          0,
-          Math.min(
-            1,
-            (balls.length - MIN_BALLS) /
-            (maxBalls - MIN_BALLS)
-          )
-        );
-      }
-
-      function currentColor() {
-        const p = temperatureProgress();
-
-        // Cold blue -> cyan -> violet -> orange/red.
-        // The piece heats up as the population grows and cools as it merges.
-        const stops = [
-          { p: 0.00, h: 210, s: 95, l: 66 }, // icy blue
-          { p: 0.25, h: 185, s: 95, l: 62 }, // cyan
-          { p: 0.55, h: 275, s: 88, l: 66 }, // violet
-          { p: 0.78, h: 32,  s: 96, l: 60 }, // orange
-          { p: 1.00, h: 8,   s: 95, l: 58 }  // warm red
+        let orbiting = false;
+        let audioContext = null;
+        let audioMaster = null;
+        let audioCompressor = null;
+        let animationLoopStarted = false;
+
+        const soundState = {
+          splitLastAt: 0,
+          mergeLastAt: 0,
+          activeVoices: 0,
+          maxVoices: 18
+        };
+
+        // Pentatonic / Lydian scale pitch quantization for harmonic generative sound
+        const SCALE_FREQS = [
+          130.81, 146.83, 164.81, 196.00, 220.00,
+          261.63, 293.66, 329.63, 392.00, 440.00,
+          523.25, 587.33, 659.25, 783.99, 880.00,
+          1046.50, 1174.66, 1318.51, 1567.98, 1760.00
         ];
 
-        let a = stops[0];
-        let b = stops[stops.length - 1];
+        function getQuantizedPitch(progress) {
+          const clamped = THREE.MathUtils.clamp(progress, 0, 1);
+          const index = Math.floor(clamped * (SCALE_FREQS.length - 1));
+          return SCALE_FREQS[index];
+        }
 
-        for (let i = 0; i < stops.length - 1; i++) {
-          if (p >= stops[i].p && p <= stops[i + 1].p) {
-            a = stops[i];
-            b = stops[i + 1];
-            break;
+        async function unlockAudio() {
+          try {
+            if (!audioContext) {
+              const AudioContextClass =
+                window.AudioContext || window.webkitAudioContext;
+
+              if (!AudioContextClass) {
+                console.warn("Singularity audio: Web Audio API unavailable");
+                return false;
+              }
+
+              audioContext = new AudioContextClass();
+
+              audioMaster = audioContext.createGain();
+              audioMaster.gain.value = 0.72;
+
+              audioCompressor = audioContext.createDynamicsCompressor();
+              audioCompressor.threshold.value = -18;
+              audioCompressor.knee.value = 16;
+              audioCompressor.ratio.value = 7;
+              audioCompressor.attack.value = 0.003;
+              audioCompressor.release.value = 0.18;
+
+              audioMaster.connect(audioCompressor);
+              audioCompressor.connect(audioContext.destination);
+            }
+
+            if (audioContext.state !== "running") {
+              await audioContext.resume();
+            }
+
+            return audioContext.state === "running";
+          } catch (error) {
+            console.error("Singularity audio failed to start:", error);
+            return false;
           }
         }
 
-        const span = Math.max(0.0001, b.p - a.p);
-        const t = (p - a.p) / span;
+        function playIgnitionSound() {
+          if (!audioContext || audioContext.state !== "running" || !audioMaster) return;
 
-        // Interpolate hue through the shortest visible path for each segment.
-        const h = a.h + (b.h - a.h) * t;
-        const s = a.s + (b.s - a.s) * t;
-        const l = a.l + (b.l - a.l) * t;
+          const t = audioContext.currentTime;
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
 
-        return `hsl(${h}, ${s}%, ${l}%)`;
-      }
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(440, t);
+          osc.frequency.exponentialRampToValueAtTime(880, t + 0.12);
 
-      function drawBall(ball) {
-        ctx.fillStyle = currentColor();
-        ctx.beginPath();
-        ctx.arc(
-          ball.x,
-          ball.y,
-          BALL_RADIUS,
-          0,
-          Math.PI * 2
-        );
-        ctx.fill();
-      }
+          gain.gain.setValueAtTime(0.0001, t);
+          gain.gain.exponentialRampToValueAtTime(0.18, t + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
 
-      function drawSpark(ball, now) {
-        drawBall(ball);
+          osc.connect(gain);
+          gain.connect(audioMaster);
 
-        const pulse =
-          0.5 +
-          0.5 * Math.sin(now * 0.014 + ball.id * 1.7);
-
-        const isTwo = celebration === "min";
-        const rays = isTwo ? 10 : 5;
-
-        if (isTwo) {
-          ctx.strokeStyle =
-            `rgba(150,230,255,${0.30 + pulse * 0.70})`;
-        } else {
-          ctx.strokeStyle =
-            `rgba(255,220,135,${0.30 + pulse * 0.70})`;
+          osc.start(t);
+          osc.stop(t + 0.24);
         }
 
-        ctx.lineWidth = isTwo ? 1.4 : 1;
+        function createStereoOutput(worldPosition, gainValue) {
+          if (!audioContext || !audioMaster) return null;
 
-        for (let i = 0; i < rays; i++) {
-          const angle =
-            now * 0.002 +
-            ball.id +
-            i * Math.PI * 2 / rays;
+          const gain = audioContext.createGain();
+          gain.gain.value = gainValue;
 
-          const inner = BALL_RADIUS + 4;
-          const outer =
-            BALL_RADIUS +
-            8 +
-            pulse * (isTwo ? 18 : 9);
+          let tailNode = gain;
 
-          ctx.beginPath();
-          ctx.moveTo(
-            ball.x + Math.cos(angle) * inner,
-            ball.y + Math.sin(angle) * inner
-          );
-          ctx.lineTo(
-            ball.x + Math.cos(angle) * outer,
-            ball.y + Math.sin(angle) * outer
-          );
-          ctx.stroke();
-        }
-      }
-
-      function draw(now) {
-        fadePreviousFrame();
-        drawArena();
-
-        for (const ball of balls) {
-          if (celebration) {
-            drawSpark(ball, now);
+          if (audioContext.createStereoPanner && worldPosition) {
+            const projected = worldPosition.clone().project(camera);
+            const pan = audioContext.createStereoPanner();
+            pan.pan.value = THREE.MathUtils.clamp(projected.x, -0.85, 0.85);
+            gain.connect(pan);
+            pan.connect(audioMaster);
+            tailNode = gain;
           } else {
-            drawBall(ball);
+            gain.connect(audioMaster);
+          }
+
+          return { gain, tailNode };
+        }
+
+        function registerVoice(durationSeconds) {
+          soundState.activeVoices++;
+          window.setTimeout(() => {
+            soundState.activeVoices = Math.max(0, soundState.activeVoices - 1);
+          }, Math.ceil(durationSeconds * 1000) + 80);
+        }
+
+        function playSplitSound(worldPosition) {
+          if (
+            !audioContext ||
+            audioContext.state !== "running" ||
+            soundState.activeVoices >= soundState.maxVoices
+          ) return;
+
+          const nowMs = performance.now();
+          const minInterval =
+            particles.length > 180 ? 48 :
+            particles.length > 90 ? 34 :
+            20;
+
+          if (nowMs - soundState.splitLastAt < minInterval) return;
+          soundState.splitLastAt = nowMs;
+
+          const t = audioContext.currentTime;
+          const progress = populationProgress();
+
+          const baseFreq = getQuantizedPitch(progress) * (0.97 + Math.random() * 0.06);
+          const volume = THREE.MathUtils.lerp(0.095, 0.040, progress);
+
+          const output = createStereoOutput(worldPosition, volume);
+          if (!output) return;
+
+          const osc = audioContext.createOscillator();
+          const partial = audioContext.createOscillator();
+          const partialGain = audioContext.createGain();
+
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(baseFreq, t);
+          osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.72, t + 0.105);
+
+          partial.type = "triangle";
+          partial.frequency.setValueAtTime(baseFreq * 2.02, t);
+          partial.frequency.exponentialRampToValueAtTime(baseFreq * 1.42, t + 0.075);
+
+          output.gain.gain.setValueAtTime(0.0001, t);
+          output.gain.gain.exponentialRampToValueAtTime(volume, t + 0.006);
+          output.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+
+          partialGain.gain.setValueAtTime(0.0001, t);
+          partialGain.gain.exponentialRampToValueAtTime(volume * 0.28, t + 0.004);
+          partialGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.075);
+
+          osc.connect(output.gain);
+          partial.connect(partialGain);
+          partialGain.connect(output.gain);
+
+          osc.start(t);
+          partial.start(t);
+          osc.stop(t + 0.18);
+          partial.stop(t + 0.09);
+
+          registerVoice(0.18);
+
+          if ("vibrate" in navigator && Math.random() < 0.2) {
+            navigator.vibrate(5);
           }
         }
-      }
 
-      function loop(now) {
-        const dt = now - lastTime;
-        lastTime = now;
+        function playMergeSound(worldPosition) {
+          if (
+            !audioContext ||
+            audioContext.state !== "running" ||
+            soundState.activeVoices >= soundState.maxVoices
+          ) return;
 
-        update(dt, now);
-        draw(now);
+          const nowMs = performance.now();
+          const minInterval =
+            particles.length > 100 ? 42 :
+            particles.length > 30 ? 30 :
+            18;
 
-        if (celebration) {
-          updateUI(now);
+          if (nowMs - soundState.mergeLastAt < minInterval) return;
+          soundState.mergeLastAt = nowMs;
+
+          const t = audioContext.currentTime;
+          const compression = THREE.MathUtils.clamp(
+            1 - currentArenaRadius / MAX_ARENA_RADIUS,
+            0,
+            1
+          );
+
+          const baseFreq = getQuantizedPitch(1 - compression) * 0.5 * (0.97 + Math.random() * 0.06);
+          const volume = THREE.MathUtils.lerp(0.075, 0.115, compression);
+
+          const output = createStereoOutput(worldPosition, volume);
+          if (!output) return;
+
+          const osc = audioContext.createOscillator();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(baseFreq * 1.28, t);
+          osc.frequency.exponentialRampToValueAtTime(baseFreq, t + 0.09);
+
+          output.gain.gain.setValueAtTime(0.0001, t);
+          output.gain.gain.exponentialRampToValueAtTime(volume, t + 0.008);
+          output.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.19);
+
+          osc.connect(output.gain);
+          osc.start(t);
+          osc.stop(t + 0.21);
+
+          registerVoice(0.21);
+
+          if ("vibrate" in navigator && Math.random() < 0.25) {
+            navigator.vibrate(8);
+          }
         }
 
-        requestAnimationFrame(loop);
-      }
+        function playRebirthSound(worldPosition) {
+          cameraShake = 0.55;
+          if ("vibrate" in navigator) {
+            navigator.vibrate([15, 30, 60]);
+          }
 
-      function pointerPosition(event) {
-        const rect = canvas.getBoundingClientRect();
+          if (!audioContext || audioContext.state !== "running") return;
 
-        return {
-          x: event.clientX - rect.left,
-          y: event.clientY - rect.top,
+          const t = audioContext.currentTime;
+
+          if (audioMaster) {
+            audioMaster.gain.cancelScheduledValues(t);
+            audioMaster.gain.setValueAtTime(0.46, t);
+            audioMaster.gain.linearRampToValueAtTime(0.58, t + 0.34);
+            audioMaster.gain.linearRampToValueAtTime(0.52, t + 0.90);
+          }
+
+          const output = createStereoOutput(worldPosition, 0.19);
+          if (!output) return;
+
+          const sub = audioContext.createOscillator();
+          sub.type = "sine";
+          sub.frequency.setValueAtTime(92, t);
+          sub.frequency.exponentialRampToValueAtTime(38, t + 0.48);
+
+          const subGain = audioContext.createGain();
+          subGain.gain.setValueAtTime(0.0001, t);
+          subGain.gain.exponentialRampToValueAtTime(0.19, t + 0.012);
+          subGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.62);
+
+          sub.connect(subGain);
+          subGain.connect(output.gain);
+
+          const crack = audioContext.createOscillator();
+          crack.type = "triangle";
+          crack.frequency.setValueAtTime(1480, t);
+          crack.frequency.exponentialRampToValueAtTime(330, t + 0.16);
+
+          const crackGain = audioContext.createGain();
+          crackGain.gain.setValueAtTime(0.0001, t);
+          crackGain.gain.exponentialRampToValueAtTime(0.085, t + 0.004);
+          crackGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.19);
+
+          crack.connect(crackGain);
+          crackGain.connect(output.gain);
+
+          const bufferLength = Math.max(1, Math.floor(audioContext.sampleRate * 0.48));
+          const noiseBuffer = audioContext.createBuffer(1, bufferLength, audioContext.sampleRate);
+          const data = noiseBuffer.getChannelData(0);
+
+          for (let i = 0; i < bufferLength; i++) {
+            const envelope = 1 - i / bufferLength;
+            data[i] = (Math.random() * 2 - 1) * envelope;
+          }
+
+          const noise = audioContext.createBufferSource();
+          noise.buffer = noiseBuffer;
+
+          const noiseFilter = audioContext.createBiquadFilter();
+          noiseFilter.type = "bandpass";
+          noiseFilter.frequency.setValueAtTime(620, t);
+          noiseFilter.frequency.exponentialRampToValueAtTime(180, t + 0.46);
+          noiseFilter.Q.value = 0.7;
+
+          const noiseGain = audioContext.createGain();
+          noiseGain.gain.setValueAtTime(0.0001, t);
+          noiseGain.gain.exponentialRampToValueAtTime(0.075, t + 0.025);
+          noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.48);
+
+          noise.connect(noiseFilter);
+          noiseFilter.connect(noiseGain);
+          noiseGain.connect(output.gain);
+
+          sub.start(t);
+          crack.start(t);
+          noise.start(t);
+
+          sub.stop(t + 0.66);
+          crack.stop(t + 0.22);
+          noise.stop(t + 0.50);
+
+          registerVoice(0.72);
+        }
+
+        function playMaxSound() {
+          cameraShake = 0.40;
+          if ("vibrate" in navigator) {
+            navigator.vibrate([30, 20, 50]);
+          }
+
+          if (!audioContext || audioContext.state !== "running" || !audioMaster) return;
+
+          const t = audioContext.currentTime;
+
+          audioMaster.gain.cancelScheduledValues(t);
+          audioMaster.gain.setValueAtTime(0.46, t);
+          audioMaster.gain.linearRampToValueAtTime(0.62, t + 0.055);
+          audioMaster.gain.linearRampToValueAtTime(0.52, t + 0.85);
+
+          const sub = audioContext.createOscillator();
+          const subGain = audioContext.createGain();
+
+          sub.type = "sine";
+          sub.frequency.setValueAtTime(118, t);
+          sub.frequency.exponentialRampToValueAtTime(42, t + 0.62);
+
+          subGain.gain.setValueAtTime(0.0001, t);
+          subGain.gain.exponentialRampToValueAtTime(0.22, t + 0.012);
+          subGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.72);
+
+          sub.connect(subGain);
+          subGain.connect(audioMaster);
+
+          const body = audioContext.createOscillator();
+          const bodyGain = audioContext.createGain();
+
+          body.type = "triangle";
+          body.frequency.setValueAtTime(210, t);
+          body.frequency.exponentialRampToValueAtTime(72, t + 0.34);
+
+          bodyGain.gain.setValueAtTime(0.0001, t);
+          bodyGain.gain.exponentialRampToValueAtTime(0.14, t + 0.008);
+          bodyGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+
+          body.connect(bodyGain);
+          bodyGain.connect(audioMaster);
+
+          const crack = audioContext.createOscillator();
+          crack.type = "square";
+          crack.frequency.setValueAtTime(1850, t);
+          crack.frequency.exponentialRampToValueAtTime(420, t + 0.095);
+
+          const crackGain = audioContext.createGain();
+          crackGain.gain.setValueAtTime(0.0001, t);
+          crackGain.gain.exponentialRampToValueAtTime(0.055, t + 0.002);
+          crackGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
+
+          crack.connect(crackGain);
+          crackGain.connect(audioMaster);
+
+          const noiseLength = Math.max(1, Math.floor(audioContext.sampleRate * 0.38));
+          const noiseBuffer = audioContext.createBuffer(1, noiseLength, audioContext.sampleRate);
+          const noiseData = noiseBuffer.getChannelData(0);
+
+          for (let i = 0; i < noiseLength; i++) {
+            const x = i / noiseLength;
+            const envelope = Math.pow(1 - x, 2.2);
+            noiseData[i] = (Math.random() * 2 - 1) * envelope;
+          }
+
+          const noise = audioContext.createBufferSource();
+          noise.buffer = noiseBuffer;
+
+          const noiseFilter = audioContext.createBiquadFilter();
+          noiseFilter.type = "bandpass";
+          noiseFilter.frequency.setValueAtTime(900, t);
+          noiseFilter.frequency.exponentialRampToValueAtTime(260, t + 0.34);
+          noiseFilter.Q.value = 0.55;
+
+          const noiseGain = audioContext.createGain();
+          noiseGain.gain.setValueAtTime(0.0001, t);
+          noiseGain.gain.exponentialRampToValueAtTime(0.12, t + 0.006);
+          noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
+
+          noise.connect(noiseFilter);
+          noiseFilter.connect(noiseGain);
+          noiseGain.connect(audioMaster);
+
+          const rumble = audioContext.createOscillator();
+          const rumbleGain = audioContext.createGain();
+
+          rumble.type = "sine";
+          rumble.frequency.setValueAtTime(62, t + 0.05);
+          rumble.frequency.exponentialRampToValueAtTime(31, t + 0.95);
+
+          rumbleGain.gain.setValueAtTime(0.0001, t);
+          rumbleGain.gain.exponentialRampToValueAtTime(0.085, t + 0.08);
+          rumbleGain.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
+
+          rumble.connect(rumbleGain);
+          rumbleGain.connect(audioMaster);
+
+          sub.start(t);
+          body.start(t);
+          crack.start(t);
+          noise.start(t);
+          rumble.start(t + 0.05);
+
+          sub.stop(t + 0.75);
+          body.stop(t + 0.46);
+          crack.stop(t + 0.13);
+          noise.stop(t + 0.40);
+          rumble.stop(t + 1.05);
+
+          registerVoice(1.05);
+        }
+
+        function playCollisionSound(type, worldPosition) {
+          if (type === "split") {
+            playSplitSound(worldPosition);
+          } else if (type === "merge") {
+            playMergeSound(worldPosition);
+          } else if (type === "rebirth") {
+            playRebirthSound(worldPosition);
+          }
+        }
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        scene.fog = new THREE.FogExp2(0x000000, 0.045);
+
+        const camera = new THREE.PerspectiveCamera(
+          48,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          50
+        );
+
+        camera.position.set(0.85, 0.38, 8.7);
+
+        const renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          powerPreference: "high-performance"
+        });
+
+        const renderPixelRatio = () =>
+          Math.min(
+            window.devicePixelRatio || 1,
+            window.innerWidth < 900 ? 1.35 : 1.65
+          );
+
+        renderer.setPixelRatio(renderPixelRatio());
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.12;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        renderer.domElement.style.opacity = "0";
+        renderer.domElement.style.transition = "opacity 420ms ease";
+        stage.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enabled = false;
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.enablePan = false;
+        controls.enableZoom = false;
+        controls.minPolarAngle = Math.PI * 0.20;
+        controls.maxPolarAngle = Math.PI * 0.80;
+        controls.rotateSpeed = 0.7;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.38;
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        const roomEnvironment = new RoomEnvironment();
+        const environmentTarget = pmremGenerator.fromScene(roomEnvironment, 0.04);
+        scene.environment = environmentTarget.texture;
+        pmremGenerator.dispose();
+        roomEnvironment.dispose();
+
+        const world = new THREE.Group();
+        scene.add(world);
+
+        const starCount = 140;
+        const starPositions = new Float32Array(starCount * 3);
+
+        for (let i = 0; i < starCount; i++) {
+          const r = 12 + Math.random() * 16;
+          const dir = randomDirectionForBackground();
+
+          starPositions[i * 3] = dir.x * r;
+          starPositions[i * 3 + 1] = dir.y * r;
+          starPositions[i * 3 + 2] = dir.z * r;
+        }
+
+        const starGeometry = new THREE.BufferGeometry();
+        starGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
+
+        const stars = new THREE.Points(
+          starGeometry,
+          new THREE.PointsMaterial({
+            color: 0xbddfff,
+            size: 0.014,
+            transparent: true,
+            opacity: 0.10,
+            depthWrite: false
+          })
+        );
+        scene.add(stars);
+
+        function randomDirectionForBackground() {
+          const z = Math.random() * 2 - 1;
+          const theta = Math.random() * Math.PI * 2;
+          const rr = Math.sqrt(Math.max(0, 1 - z * z));
+          return new THREE.Vector3(rr * Math.cos(theta), rr * Math.sin(theta), z);
+        }
+
+        const composer = new EffectComposer(renderer);
+        composer.setPixelRatio(renderPixelRatio());
+        composer.setSize(window.innerWidth, window.innerHeight);
+
+        const renderPass = new RenderPass(scene, camera);
+        composer.addPass(renderPass);
+
+        const bokehPass = new BokehPass(scene, camera, {
+          focus: 8.55,
+          aperture: window.innerWidth < 900 ? 0.00028 : 0.00042,
+          maxblur: window.innerWidth < 900 ? 0.0038 : 0.0058
+        });
+        composer.addPass(bokehPass);
+
+        const bloomPass = new UnrealBloomPass(
+          new THREE.Vector2(window.innerWidth, window.innerHeight),
+          window.innerWidth < 900 ? 0.58 : 0.78,
+          0.42,
+          0.72
+        );
+        composer.addPass(bloomPass);
+
+        const cinematicShader = {
+          uniforms: {
+            tDiffuse: { value: null },
+            time: { value: 0 },
+            grainAmount: { value: window.innerWidth < 900 ? 0.016 : 0.012 },
+            vignetteAmount: { value: 0.34 }
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform sampler2D tDiffuse;
+            uniform float time;
+            uniform float grainAmount;
+            uniform float vignetteAmount;
+            varying vec2 vUv;
+
+            float hash(vec2 p) {
+              return fract(sin(dot(p, vec2(127.1, 311.7)) + time * 0.001) * 43758.5453123);
+            }
+
+            void main() {
+              vec4 color = texture2D(tDiffuse, vUv);
+              float dist = distance(vUv, vec2(0.5));
+              float vignette = smoothstep(0.30, 0.73, dist);
+              color.rgb *= 1.0 - vignette * vignetteAmount;
+              float noise = hash(vUv * vec2(1511.0, 893.0)) - 0.5;
+              color.rgb += noise * grainAmount;
+              gl_FragColor = color;
+            }
+          `
         };
-      }
 
-      function setRecordingMode(enabled) {
-        recordingMode = enabled;
-        document.body.classList.toggle("recording-mode", enabled);
+        const cinematicPass = new ShaderPass(cinematicShader);
+        composer.addPass(cinematicPass);
 
-        if (enabled) {
-          // Clear old UI/trail residue so a screen recording starts cleanly.
-          ctx.fillStyle = "#000";
-          ctx.fillRect(0, 0, width(), height());
+        const outputPass = new OutputPass();
+        composer.addPass(outputPass);
+
+        const ambientLight = new THREE.HemisphereLight(0x8fdcff, 0x140a1f, 1.55);
+        scene.add(ambientLight);
+
+        const keyLight = new THREE.PointLight(0xffffff, 48, 22, 2);
+        keyLight.position.set(4.6, 5.4, 6.2);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.set(1024, 1024);
+        keyLight.shadow.bias = -0.0005;
+        scene.add(keyLight);
+
+        const rimLight = new THREE.PointLight(0x64cfff, 34, 18, 2);
+        rimLight.position.set(-5.2, 2.3, -3.6);
+        scene.add(rimLight);
+
+        const warmLight = new THREE.PointLight(0xff6a32, 24, 16, 2);
+        warmLight.position.set(3.5, -4.2, -2.5);
+        scene.add(warmLight);
+
+        const sphereGeometry = new THREE.SphereGeometry(ARENA_RADIUS, 72, 48);
+
+        const boundary = new THREE.Mesh(
+          sphereGeometry,
+          new THREE.MeshPhysicalMaterial({
+            color: 0xbfeaff,
+            transparent: true,
+            opacity: 0.075,
+            roughness: 0.08,
+            metalness: 0.0,
+            transmission: 0.62,
+            thickness: 0.12,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0.06,
+            envMapIntensity: 0.72,
+            ior: 1.32,
+            side: THREE.DoubleSide,
+            depthWrite: false
+          })
+        );
+        boundary.renderOrder = 4;
+        world.add(boundary);
+
+        const shell = new THREE.Mesh(
+          sphereGeometry,
+          new THREE.MeshBasicMaterial({
+            color: 0x4fbfff,
+            transparent: true,
+            opacity: 0.018,
+            side: THREE.BackSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+          })
+        );
+        world.add(shell);
+
+        const shockwaveSphere = new THREE.Mesh(
+          sphereGeometry,
+          new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+          })
+        );
+        shockwaveSphere.visible = false;
+        shockwaveSphere.renderOrder = 5;
+        world.add(shockwaveSphere);
+
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(ARENA_RADIUS * 1.005, 0.007, 8, 160),
+          new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.11,
+            depthWrite: false
+          })
+        );
+        ring.rotation.x = Math.PI / 2;
+        world.add(ring);
+
+        const coreGeometry = new THREE.SphereGeometry(VISUAL_RADIUS, 20, 14);
+        const coreMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: 0.24,
+          metalness: 0.08,
+          emissive: 0x101018,
+          emissiveIntensity: 0.25,
+          envMapIntensity: 1.05,
+          vertexColors: false
+        });
+
+        const particleMesh = new THREE.InstancedMesh(coreGeometry, coreMaterial, MAX_ALLOWED);
+        particleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        particleMesh.count = 0;
+        particleMesh.castShadow = true;
+        particleMesh.receiveShadow = true;
+        world.add(particleMesh);
+
+        const glowGeometry = new THREE.SphereGeometry(VISUAL_RADIUS * 2.7, 10, 7);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.075,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+
+        const glowMesh = new THREE.InstancedMesh(glowGeometry, glowMaterial, MAX_ALLOWED);
+        glowMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        glowMesh.count = 0;
+        world.add(glowMesh);
+
+        const MAX_TRAIL_VERTICES = MAX_ALLOWED * 31 * 2;
+        const trailPositions = new Float32Array(MAX_TRAIL_VERTICES * 3);
+        const trailColors = new Float32Array(MAX_TRAIL_VERTICES * 3);
+
+        const trailGeometry = new THREE.BufferGeometry();
+        trailGeometry.setAttribute("position", new THREE.BufferAttribute(trailPositions, 3).setUsage(THREE.DynamicDrawUsage));
+        trailGeometry.setAttribute("color", new THREE.BufferAttribute(trailColors, 3).setUsage(THREE.DynamicDrawUsage));
+        trailGeometry.setDrawRange(0, 0);
+
+        const trailMaterial = new THREE.LineBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.58,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+
+        const trailLines = new THREE.LineSegments(trailGeometry, trailMaterial);
+        world.add(trailLines);
+
+        const MAX_SPARKS = 1000;
+        const sparkPositions = new Float32Array(MAX_SPARKS * 3);
+        const sparkColors = new Float32Array(MAX_SPARKS * 3);
+        const sparkGeometry = new THREE.BufferGeometry();
+
+        sparkGeometry.setAttribute("position", new THREE.BufferAttribute(sparkPositions, 3).setUsage(THREE.DynamicDrawUsage));
+        sparkGeometry.setAttribute("color", new THREE.BufferAttribute(sparkColors, 3).setUsage(THREE.DynamicDrawUsage));
+        sparkGeometry.setDrawRange(0, 0);
+
+        const sparkMaterial = new THREE.PointsMaterial({
+          size: 0.055,
+          sizeAttenuation: true,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.95,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+
+        const sparkPoints = new THREE.Points(sparkGeometry, sparkMaterial);
+        world.add(sparkPoints);
+
+        let sparks = [];
+
+        const dummy = new THREE.Object3D();
+        const tempColor = new THREE.Color();
+        const tempColor2 = new THREE.Color();
+        const tempV1 = new THREE.Vector3();
+        const tempV2 = new THREE.Vector3();
+        const tempV3 = new THREE.Vector3();
+        const tempNormal = new THREE.Vector3();
+        const raycaster = new THREE.Raycaster();
+        const gravityPlane = new THREE.Plane();
+        const cameraDirection = new THREE.Vector3();
+
+        const colorStops = [
+          new THREE.Color(0x49b8ff),
+          new THREE.Color(0x5ee7ff),
+          new THREE.Color(0xaa66ff),
+          new THREE.Color(0xffa13d),
+          new THREE.Color(0xff4b35)
+        ];
+
+        function populationProgress() {
+          if (maxBalls <= MIN_BALLS) return 0;
+          return THREE.MathUtils.clamp((particles.length - MIN_BALLS) / (maxBalls - MIN_BALLS), 0, 1);
         }
 
-        if (!enabled) {
+        function populationColor(target = new THREE.Color()) {
+          const p = populationProgress();
+          const scaled = p * (colorStops.length - 1);
+          const i = Math.min(colorStops.length - 2, Math.floor(scaled));
+          const t = scaled - i;
+
+          target.copy(colorStops[i]).lerp(colorStops[i + 1], t);
+          return target;
+        }
+
+        function randomUnitVector() {
+          const z = Math.random() * 2 - 1;
+          const theta = Math.random() * Math.PI * 2;
+          const r = Math.sqrt(Math.max(0, 1 - z * z));
+          return new THREE.Vector3(r * Math.cos(theta), r * Math.sin(theta), z);
+        }
+
+        function clampInside(position, margin = VISUAL_RADIUS) {
+          const limit = currentArenaRadius - margin;
+          const len = position.length();
+
+          if (len > limit && len > 0) {
+            position.multiplyScalar(limit / len);
+          }
+
+          return position;
+        }
+
+        function makeParticle(position, velocity, cooldown = 12) {
+          const p = position.clone();
+          clampInside(p, VISUAL_RADIUS + 0.02);
+
+          const c = populationColor(new THREE.Color());
+
+          return {
+            id: nextId++,
+            pos: p,
+            vel: velocity.clone(),
+            cooldown,
+            history: [p.clone()],
+            historyColors: [c.clone()]
+          };
+        }
+
+        function clearTrails() {
+          for (const p of particles) {
+            p.history = [p.pos.clone()];
+            p.historyColors = [populationColor(new THREE.Color())];
+          }
+          trailGeometry.setDrawRange(0, 0);
+        }
+
+        function createTwo(origin = new THREE.Vector3()) {
+          particles = [];
+          nextId = 1;
+
+          const axis = randomUnitVector();
+          const offset = 0.42;
+
+          const aPos = origin.clone().addScaledVector(axis, -offset);
+          const bPos = origin.clone().addScaledVector(axis, offset);
+          clampInside(aPos, 0.25);
+          clampInside(bPos, 0.25);
+
+          const towardB = bPos.clone().sub(aPos).normalize().multiplyScalar(BASE_SPEED);
+          const towardA = aPos.clone().sub(bPos).normalize().multiplyScalar(BASE_SPEED);
+
+          particles.push(makeParticle(aPos, towardB, 5));
+          particles.push(makeParticle(bPos, towardA, 5));
+
           updateUI();
         }
-      }
 
-      function applySettings() {
-        let parsedMax = Number.parseInt(maxInput.value, 10);
+        function resetAt(worldPoint) {
+          mode = "split";
+          celebration = null;
+          mergeShrinkStarted = 0;
+          mergeShrinkStartRadius = MAX_ARENA_RADIUS;
+          finalShrinkStarted = 0;
+          rebirthStartRadius = MIN_ARENA_RADIUS;
+          sparks = [];
+          sparkGeometry.setDrawRange(0, 0);
+          paused = false;
+          started = true;
 
-        if (!Number.isFinite(parsedMax)) {
-          parsedMax = maxBalls;
+          const origin = worldPoint ? worldPoint.clone() : new THREE.Vector3();
+          clampInside(origin, 0.8);
+
+          createTwo(origin);
+          clearTrails();
+          lastFrame = performance.now();
         }
 
-        maxBalls = Math.max(
-          4,
-          Math.min(MAX_ALLOWED, parsedMax)
-        );
+        function updateUI() {
+          if (!hudStateEl || !hudCountEl) return;
+          let stateText = mode.toUpperCase();
+          if (celebration === "max") stateText = "MAX EXPANSION";
+          else if (celebration === "rebirth") stateText = "SINGULARITY REBIRTH";
+          else if (mode === "final") stateText = "FINAL COMPRESSION";
 
-        maxInput.value = String(maxBalls);
-
-        const parsedTrail = Math.max(
-          2,
-          Math.min(
-            30,
-            Number.parseInt(trailInput.value, 10) || 9
-          )
-        );
-
-        trailFade = parsedTrail / 100;
-
-        const parsedGravity = Math.max(
-          0,
-          Math.min(
-            100,
-            Number.parseInt(gravityInput.value, 10) || 0
-          )
-        );
-
-        gravityStrength = parsedGravity / 100;
-
-        if (
-          started &&
-          mode === "split" &&
-          balls.length >= maxBalls &&
-          !celebration
-        ) {
-          balls = balls.slice(0, maxBalls);
-          beginCelebration("max");
+          hudStateEl.textContent = stateText;
+          hudCountEl.textContent = `PARTICLES: ${particles.length} / ${maxBalls}`;
         }
 
-        updateUI();
-      }
+        function bounceInsideSphere(particle) {
+          const limit = currentArenaRadius - VISUAL_RADIUS;
+          const len = particle.pos.length();
 
-      applyBtn.addEventListener("click", applySettings);
+          if (len < limit || len === 0) return;
 
-      recordModeBtn.addEventListener("click", () => {
-        setRecordingMode(true);
-      });
+          tempNormal.copy(particle.pos).multiplyScalar(1 / len);
+          particle.pos.copy(tempNormal).multiplyScalar(limit - 0.002);
 
-      maxInput.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          applySettings();
-        }
-      });
+          const outward = particle.vel.dot(tempNormal);
 
-      function updateGravityFromPointer(event) {
-        const p = pointerPosition(event);
-
-        gravity.x = p.x;
-        gravity.y = p.y;
-        gravity.active = isInside(p.x, p.y, BALL_RADIUS + 2);
-      }
-
-      canvas.addEventListener("pointermove", (event) => {
-        updateGravityFromPointer(event);
-
-        if (gesture.down) {
-          const dx = event.clientX - gesture.startX;
-          const dy = event.clientY - gesture.startY;
-
-          if (Math.hypot(dx, dy) >= MOVE_THRESHOLD_PX) {
-            gesture.moved = true;
+          if (outward > 0) {
+            particle.vel.addScaledVector(tempNormal, -2 * outward);
           }
         }
-      });
 
-      canvas.addEventListener("pointerenter", (event) => {
-        updateGravityFromPointer(event);
-      });
+        function updatePointerWorld() {
+          if (!pointer.active) return;
 
-      canvas.addEventListener("pointerleave", () => {
-        gravity.active = false;
-        gravity.pressed = false;
-      });
+          raycaster.setFromCamera(pointer.ndc, camera);
+          camera.getWorldDirection(cameraDirection);
+          gravityPlane.setFromNormalAndCoplanarPoint(cameraDirection, new THREE.Vector3(0, 0, 0));
 
-      canvas.addEventListener("pointerdown", (event) => {
-        updateGravityFromPointer(event);
+          const hit = raycaster.ray.intersectPlane(gravityPlane, pointer.world);
 
-        gesture.down = true;
-        gesture.startedAt = performance.now();
-        gesture.startX = event.clientX;
-        gesture.startY = event.clientY;
-        gesture.moved = false;
+          if (!hit) {
+            pointer.active = false;
+            return;
+          }
 
-        if (gravity.active) {
-          gravity.pressed = true;
+          clampInside(pointer.world, 0.25);
+        }
 
-          if (canvas.setPointerCapture) {
-            try {
-              canvas.setPointerCapture(event.pointerId);
-            } catch (_) {}
+        function applyGravity(particle, dt) {
+          const heldLongEnough =
+            gesture.down &&
+            !gesture.moved &&
+            performance.now() - gesture.startedAt >= HOLD_THRESHOLD_MS;
+
+          if (
+            !pointer.active ||
+            !pointer.pressed ||
+            !heldLongEnough ||
+            gravityStrength <= 0 ||
+            orbiting
+          ) return;
+
+          tempV1.copy(pointer.world).sub(particle.pos);
+
+          const distSq = tempV1.lengthSq();
+          if (distSq < 0.015) return;
+
+          const distance = Math.sqrt(distSq);
+          tempV1.multiplyScalar(1 / distance);
+
+          const normalized = Math.max(0.16, distance / currentArenaRadius);
+          const holdBoost = pointer.pressed && !orbiting && !gesture.moved ? 2.7 : 1.0;
+          const acceleration = gravityStrength * holdBoost * 0.88 / normalized;
+
+          particle.vel.addScaledVector(tempV1, acceleration * dt);
+
+          const maxSpeed = BASE_SPEED * 2.25;
+          const speed = particle.vel.length();
+
+          if (speed > maxSpeed) {
+            particle.vel.multiplyScalar(maxSpeed / speed);
           }
         }
-      });
 
-      canvas.addEventListener("pointerup", (event) => {
-        const heldFor = performance.now() - gesture.startedAt;
+        function applyPhaseForce(particle, dt) {
+          const len = particle.pos.length();
+          if (len < 0.001) return;
 
-        if (
-          gesture.down &&
-          (heldFor >= HOLD_THRESHOLD_MS || gesture.moved)
-        ) {
-          gesture.suppressNextClick = true;
+          tempV1.copy(particle.pos).multiplyScalar(-1 / len);
+
+          const strength =
+            mode === "merge"
+              ? 0.19
+              : mode === "final"
+                ? 0.0
+                : 0.014;
+
+          particle.vel.addScaledVector(tempV1, strength * dt);
         }
 
-        gesture.down = false;
+        function tetraDirections() {
+          const dirs = [
+            new THREE.Vector3(1, 1, 1).normalize(),
+            new THREE.Vector3(-1, -1, 1).normalize(),
+            new THREE.Vector3(-1, 1, -1).normalize(),
+            new THREE.Vector3(1, -1, -1).normalize()
+          ];
 
-        gravity.pressed = false;
-        updateGravityFromPointer(event);
+          const q = new THREE.Quaternion().setFromEuler(
+            new THREE.Euler(
+              Math.random() * Math.PI * 2,
+              Math.random() * Math.PI * 2,
+              Math.random() * Math.PI * 2
+            )
+          );
 
-        if (canvas.releasePointerCapture) {
-          try {
-            if (canvas.hasPointerCapture(event.pointerId)) {
-              canvas.releasePointerCapture(event.pointerId);
+          for (const d of dirs) d.applyQuaternion(q);
+          return dirs;
+        }
+
+        function splitPair(a, b, spawnCount) {
+          const center = a.pos.clone().add(b.pos).multiplyScalar(0.5);
+          clampInside(center, 0.3);
+
+          const dirs = tetraDirections();
+          const out = [];
+
+          for (let i = 0; i < spawnCount; i++) {
+            const dir = dirs[i % dirs.length].clone();
+
+            if (i >= dirs.length) {
+              dir.add(randomUnitVector().multiplyScalar(0.35)).normalize();
             }
-          } catch (_) {}
-        }
-      });
 
-      canvas.addEventListener("pointercancel", () => {
-        gesture.down = false;
-        gesture.moved = false;
-        gesture.suppressNextClick = true;
+            const pos = center.clone().addScaledVector(dir, COLLISION_DISTANCE * 0.56);
+            clampInside(pos, 0.18);
 
-        gravity.active = false;
-        gravity.pressed = false;
-      });
-
-      canvas.addEventListener("click", (event) => {
-        clearTimeout(clickTimer);
-
-        // Browsers still fire a click after pointerup.
-        // Ignore that click when the interaction was a hold or drag used for gravity.
-        if (gesture.suppressNextClick) {
-          gesture.suppressNextClick = false;
-          return;
-        }
-
-        const p = pointerPosition(event);
-
-        if (recordingMode && !isInside(p.x, p.y, 4)) {
-          setRecordingMode(false);
-          return;
-        }
-
-        if (!isInside(p.x, p.y, 4)) {
-          statusEl.textContent = "Click inside the circle";
-          return;
-        }
-
-        clickTimer = setTimeout(() => {
-          if (!started) {
-            start(p.x, p.y);
-          } else {
-            stopped = !stopped;
-            lastTime = performance.now();
-            updateUI();
+            const speed = BASE_SPEED * (0.92 + Math.random() * 0.18);
+            out.push(makeParticle(pos, dir.multiplyScalar(speed), 13));
           }
-        }, CLICK_DELAY);
-      });
 
-      canvas.addEventListener("dblclick", (event) => {
-        event.preventDefault();
-        clearTimeout(clickTimer);
-
-        const p = pointerPosition(event);
-
-        if (recordingMode && !isInside(p.x, p.y, 4)) {
-          setRecordingMode(false);
-          return;
+          return out;
         }
 
-        if (!isInside(p.x, p.y, 4)) {
-          statusEl.textContent =
-            "Double-click inside the circle";
-          return;
+        function mergePair(a, b) {
+          const pos = a.pos.clone().add(b.pos).multiplyScalar(0.5);
+          clampInside(pos, 0.18);
+
+          const vel = a.vel.clone().add(b.vel);
+
+          if (vel.lengthSq() < 0.04) {
+            vel.copy(randomUnitVector()).multiplyScalar(BASE_SPEED);
+          } else {
+            vel.normalize().multiplyScalar(BASE_SPEED);
+          }
+
+          return makeParticle(pos, vel, 12);
         }
 
-        start(p.x, p.y);
-      });
+        function startCelebration(type) {
+          celebration = type;
+          celebrationStarted = performance.now();
 
-      window.addEventListener("resize", resize);
+          if (type === "max") {
+            playMaxSound();
+          }
 
-      resize();
-      updateUI();
-      requestAnimationFrame(loop);
+          spawnCelebrationSparks(type);
+          updateUI();
+        }
+
+        function spawnCelebrationSparks(type) {
+          sparks = [];
+
+          const isMax = type === "max";
+          const isRebirth = type === "rebirth";
+
+          const targetCount = isMax
+            ? Math.min(MAX_SPARKS, Math.max(320, particles.length * 3))
+            : isRebirth
+              ? 520
+              : 220;
+
+          const sparkColor = new THREE.Color(isMax ? 0xffd27a : 0x8fe9ff);
+
+          for (let i = 0; i < targetCount; i++) {
+            const source = particles[i % particles.length];
+            const dir = randomUnitVector();
+
+            sparks.push({
+              pos: source.pos.clone(),
+              vel: dir.multiplyScalar(
+                isMax
+                  ? 0.65 + Math.random() * 0.9
+                  : isRebirth
+                    ? 1.1 + Math.random() * 1.4
+                    : 0.45 + Math.random() * 0.65
+              ),
+              life: 0,
+              maxLife: 0.8 + Math.random() * 1.4,
+              color: sparkColor.clone().lerp(new THREE.Color(0xffffff), Math.random() * 0.45)
+            });
+          }
+        }
+
+        function finishCelebration() {
+          if (celebration === "max") {
+            celebration = null;
+            mode = "merge";
+            currentArenaRadius = MAX_ARENA_RADIUS;
+            mergeShrinkStarted = performance.now();
+            mergeShrinkStartRadius = MAX_ARENA_RADIUS;
+
+            for (const p of particles) {
+              p.cooldown = Math.floor(Math.random() * 6);
+            }
+          } else if (celebration === "rebirth") {
+            celebration = null;
+            mode = "split";
+            postExplosionStarted = performance.now();
+            currentArenaRadius = MAX_ARENA_RADIUS;
+            mergeShrinkStarted = 0;
+            mergeShrinkStartRadius = MAX_ARENA_RADIUS;
+
+            for (const p of particles) {
+              p.cooldown = 9;
+            }
+          }
+
+          sparks = [];
+          sparkGeometry.setDrawRange(0, 0);
+          trailLines.visible = true;
+          world.scale.setScalar(1);
+          updateUI();
+        }
+
+        function triggerRebirthCollision(a, b) {
+          const center = a.pos.clone().add(b.pos).multiplyScalar(0.5);
+
+          playCollisionSound("rebirth", center);
+
+          rebirthStartRadius = currentArenaRadius;
+          finalShrinkStarted = 0;
+
+          const next = splitPair(a, b, 4);
+
+          for (const p of next) {
+            p.pos.lerp(center, 0.42);
+            p.cooldown = 10;
+          }
+
+          particles = next;
+          clearTrails();
+
+          mode = "split";
+          startCelebration("rebirth");
+        }
+
+        function processCollisions() {
+          if (particles.length < 2) return;
+
+          const thresholdSq = COLLISION_DISTANCE * COLLISION_DISTANCE;
+
+          if (mode === "final" && particles.length === 2) {
+            const a = particles[0];
+            const b = particles[1];
+
+            if (a.cooldown <= 0 && b.cooldown <= 0) {
+              tempV1.copy(b.pos).sub(a.pos);
+              const distSq = tempV1.lengthSq();
+
+              if (distSq > 0 && distSq <= thresholdSq) {
+                tempNormal.copy(tempV1).normalize();
+                tempV2.copy(b.vel).sub(a.vel);
+
+                if (tempV2.dot(tempNormal) < 0) {
+                  triggerRebirthCollision(a, b);
+                }
+              }
+            }
+
+            return;
+          }
+
+          const removed = new Set();
+          const additions = [];
+          let projectedCount = particles.length;
+
+          for (let i = 0; i < particles.length; i++) {
+            const a = particles[i];
+
+            if (removed.has(a.id) || a.cooldown > 0) continue;
+
+            for (let j = i + 1; j < particles.length; j++) {
+              const b = particles[j];
+
+              if (removed.has(b.id) || b.cooldown > 0) continue;
+
+              tempV1.copy(b.pos).sub(a.pos);
+              const distSq = tempV1.lengthSq();
+
+              if (distSq > thresholdSq || distSq === 0) continue;
+
+              tempNormal.copy(tempV1).normalize();
+
+              tempV2.copy(b.vel).sub(a.vel);
+              const closing = tempV2.dot(tempNormal);
+
+              if (closing >= 0) continue;
+
+              removed.add(a.id);
+              removed.add(b.id);
+
+              if (mode === "split") {
+                const currentAfterRemoval = projectedCount - 2;
+                const room = maxBalls - currentAfterRemoval;
+                const spawnCount = Math.max(2, Math.min(4, room));
+                const collisionPoint = a.pos.clone().add(b.pos).multiplyScalar(0.5);
+
+                playCollisionSound("split", collisionPoint);
+
+                additions.push(...splitPair(a, b, spawnCount));
+                projectedCount = currentAfterRemoval + spawnCount;
+              } else if (mode === "merge") {
+                const collisionPoint = a.pos.clone().add(b.pos).multiplyScalar(0.5);
+
+                playCollisionSound("merge", collisionPoint);
+
+                additions.push(mergePair(a, b));
+                projectedCount -= 1;
+              }
+
+              break;
+            }
+          }
+
+          if (removed.size === 0) return;
+
+          particles = particles.filter((p) => !removed.has(p.id));
+          particles.push(...additions);
+          updateUI();
+
+          if (mode === "split" && particles.length >= maxBalls) {
+            particles = particles.slice(0, maxBalls);
+            startCelebration("max");
+            return;
+          }
+
+          if (mode === "merge" && particles.length <= MIN_BALLS) {
+            particles = particles.slice(0, MIN_BALLS);
+            mergeShrinkStartRadius = currentArenaRadius;
+            finalShrinkStarted = performance.now();
+            mode = "final";
+            updateUI();
+            return;
+          }
+        }
+
+        function recordTrail(particle) {
+          particle.history.unshift(particle.pos.clone());
+          particle.historyColors.unshift(populationColor(new THREE.Color()));
+
+          if (particle.history.length > trailLength) {
+            particle.history.length = trailLength;
+            particle.historyColors.length = trailLength;
+          }
+        }
+
+        function updateTrails() {
+          let vertexIndex = 0;
+
+          for (const particle of particles) {
+            const history = particle.history;
+            const historyColors = particle.historyColors;
+            const segmentCount = Math.min(history.length - 1, trailLength - 1);
+
+            for (let i = 0; i < segmentCount; i++) {
+              if (vertexIndex + 2 >= MAX_TRAIL_VERTICES) break;
+
+              const p1 = history[i];
+              const p2 = history[i + 1];
+
+              const fade1 = 1 - i / Math.max(1, trailLength);
+              const fade2 = 1 - (i + 1) / Math.max(1, trailLength);
+
+              const c1 = historyColors[i] || populationColor(tempColor);
+              const c2 = historyColors[i + 1] || c1;
+
+              const base1 = vertexIndex * 3;
+              trailPositions[base1] = p1.x;
+              trailPositions[base1 + 1] = p1.y;
+              trailPositions[base1 + 2] = p1.z;
+
+              trailColors[base1] = c1.r * fade1;
+              trailColors[base1 + 1] = c1.g * fade1;
+              trailColors[base1 + 2] = c1.b * fade1;
+
+              vertexIndex++;
+
+              const base2 = vertexIndex * 3;
+              trailPositions[base2] = p2.x;
+              trailPositions[base2 + 1] = p2.y;
+              trailPositions[base2 + 2] = p2.z;
+
+              trailColors[base2] = c2.r * fade2 * 0.74;
+              trailColors[base2 + 1] = c2.g * fade2 * 0.74;
+              trailColors[base2 + 2] = c2.b * fade2 * 0.74;
+
+              vertexIndex++;
+            }
+          }
+
+          trailGeometry.setDrawRange(0, vertexIndex);
+          trailGeometry.attributes.position.needsUpdate = true;
+          trailGeometry.attributes.color.needsUpdate = true;
+        }
+
+        function updateSparks(dt) {
+          if (sparks.length === 0) {
+            sparkGeometry.setDrawRange(0, 0);
+            return;
+          }
+
+          let count = 0;
+
+          for (const s of sparks) {
+            s.life += dt;
+            if (s.life >= s.maxLife) continue;
+
+            s.pos.addScaledVector(s.vel, dt);
+            s.vel.multiplyScalar(Math.pow(0.965, dt * 60));
+
+            const lifeFade = 1 - s.life / s.maxLife;
+            const base = count * 3;
+
+            sparkPositions[base] = s.pos.x;
+            sparkPositions[base + 1] = s.pos.y;
+            sparkPositions[base + 2] = s.pos.z;
+
+            sparkColors[base] = s.color.r * lifeFade;
+            sparkColors[base + 1] = s.color.g * lifeFade;
+            sparkColors[base + 2] = s.color.b * lifeFade;
+
+            count++;
+            if (count >= MAX_SPARKS) break;
+          }
+
+          sparkGeometry.setDrawRange(0, count);
+          sparkGeometry.attributes.position.needsUpdate = true;
+          sparkGeometry.attributes.color.needsUpdate = true;
+
+          sparks = sparks.filter((s) => s.life < s.maxLife);
+
+          if (celebration && sparks.length < 70) {
+            spawnCelebrationSparks(celebration);
+          }
+        }
+
+        function updatePhysics(dt, now) {
+          updatePointerWorld();
+
+          if (!started || paused) {
+            updateSparks(dt);
+            return;
+          }
+
+          if (celebration) {
+            updateSparks(dt);
+
+            const duration =
+              celebration === "max"
+                ? MAX_EXPANSION_MS
+                : REBIRTH_EXPLOSION_MS;
+
+            if (now - celebrationStarted >= duration) {
+              finishCelebration();
+            }
+
+            return;
+          }
+
+          trailTick++;
+
+          for (const p of particles) {
+            if (p.cooldown > 0) p.cooldown--;
+
+            clampInside(p.pos, VISUAL_RADIUS);
+
+            applyPhaseForce(p, dt);
+            applyGravity(p, dt);
+
+            p.pos.addScaledVector(p.vel, dt);
+            bounceInsideSphere(p);
+
+            if ((trailTick & 1) === 0) {
+              recordTrail(p);
+            }
+          }
+
+          processCollisions();
+        }
+
+        function celebrationProgress(now) {
+          if (!celebration) return 0;
+
+          const duration =
+            celebration === "max"
+              ? MAX_EXPANSION_MS
+              : REBIRTH_EXPLOSION_MS;
+
+          return THREE.MathUtils.clamp((now - celebrationStarted) / duration, 0, 1);
+        }
+
+        function updateArenaRadius(now) {
+          if (celebration === "max") {
+            const t = celebrationProgress(now);
+            const eased = THREE.MathUtils.smoothstep(t, 0, 1);
+            currentArenaRadius = THREE.MathUtils.lerp(ARENA_RADIUS, MAX_ARENA_RADIUS, eased);
+            return;
+          }
+
+          if (celebration === "rebirth") {
+            const t = celebrationProgress(now);
+            const explosive = 1 - Math.pow(1 - t, 4.2);
+            currentArenaRadius = THREE.MathUtils.lerp(rebirthStartRadius, MAX_ARENA_RADIUS, explosive);
+            return;
+          }
+
+          if (mode === "merge") {
+            if (!mergeShrinkStarted) {
+              mergeShrinkStarted = now;
+              mergeShrinkStartRadius = currentArenaRadius || MAX_ARENA_RADIUS;
+            }
+
+            const elapsed = Math.max(0, (now - mergeShrinkStarted) / 1000);
+            currentArenaRadius = Math.max(
+              MIN_ARENA_RADIUS,
+              mergeShrinkStartRadius - MERGE_SHRINK_RATE * elapsed
+            );
+            return;
+          }
+
+          if (mode === "final") {
+            if (!finalShrinkStarted) {
+              mergeShrinkStartRadius = currentArenaRadius;
+              finalShrinkStarted = now;
+            }
+
+            const elapsed = Math.max(0, (now - finalShrinkStarted) / 1000);
+            currentArenaRadius = Math.max(
+              FINAL_MIN_RADIUS,
+              mergeShrinkStartRadius - FINAL_SHRINK_RATE * elapsed
+            );
+            return;
+          }
+
+          if (mode === "split" && postExplosionStarted > 0) {
+            const t = THREE.MathUtils.clamp((now - postExplosionStarted) / POST_EXPLOSION_SETTLE_MS, 0, 1);
+            const eased = THREE.MathUtils.smoothstep(t, 0, 1);
+            currentArenaRadius = THREE.MathUtils.lerp(MAX_ARENA_RADIUS, ARENA_RADIUS, eased);
+
+            if (t >= 1) {
+              postExplosionStarted = 0;
+              currentArenaRadius = ARENA_RADIUS;
+            }
+
+            return;
+          }
+
+          currentArenaRadius = ARENA_RADIUS;
+        }
+
+        function impactEnvelope(t) {
+          const attack = THREE.MathUtils.smoothstep(t, 0.0, 0.16);
+          const decay = 1.0 - THREE.MathUtils.smoothstep(t, 0.20, 1.0);
+          return THREE.MathUtils.clamp(attack * decay, 0, 1);
+        }
+
+        function updateInstances(now) {
+          const color = populationColor(tempColor);
+          const t = celebrationProgress(now);
+          const impact = impactEnvelope(t);
+          const arenaScale = currentArenaRadius / ARENA_RADIUS;
+
+          const pulse = celebration ? 1 + 0.10 * impact : 1;
+
+          boundary.scale.setScalar(arenaScale);
+          shell.scale.setScalar(arenaScale);
+          ring.scale.setScalar(arenaScale);
+
+          particleMesh.count = particles.length;
+          glowMesh.count = particles.length;
+
+          for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
+
+            dummy.position.copy(p.pos);
+            dummy.rotation.set(0, 0, 0);
+
+            tempV3.copy(camera.position).sub(p.pos);
+            const cameraDistance = tempV3.length();
+            const depthScale = THREE.MathUtils.clamp(10.0 / cameraDistance, 0.82, 1.22);
+
+            dummy.scale.setScalar(pulse * depthScale);
+            dummy.updateMatrix();
+
+            particleMesh.setMatrixAt(i, dummy.matrix);
+            particleMesh.setColorAt(i, color);
+
+            dummy.scale.setScalar(
+              depthScale * (
+                celebration === "max"
+                  ? 1.25 + 0.35 * Math.sin(now * 0.018 + i)
+                  : celebration === "rebirth"
+                    ? 1.55 + 0.52 * Math.sin(now * 0.020 + i)
+                    : 1
+              )
+            );
+            dummy.updateMatrix();
+
+            glowMesh.setMatrixAt(i, dummy.matrix);
+
+            if (celebration === "max") {
+              tempColor2.set(0xffd27a);
+            } else if (celebration === "rebirth") {
+              tempColor2.set(0xb9f6ff);
+            } else {
+              tempColor2.copy(color);
+            }
+
+            glowMesh.setColorAt(i, tempColor2);
+          }
+
+          particleMesh.instanceMatrix.needsUpdate = true;
+          glowMesh.instanceMatrix.needsUpdate = true;
+
+          if (particleMesh.instanceColor) particleMesh.instanceColor.needsUpdate = true;
+          if (glowMesh.instanceColor) glowMesh.instanceColor.needsUpdate = true;
+
+          updateTrails();
+
+          boundary.material.opacity = celebration ? 0.075 + 0.08 * impact : 0.075;
+          shell.material.opacity = celebration ? 0.022 + 0.065 * impact : 0.022;
+
+          if (celebration) {
+            const waveScale = arenaScale * (celebration === "rebirth" ? 0.90 + t * 0.42 : 0.985 + t * 0.17);
+            shockwaveSphere.visible = true;
+            shockwaveSphere.scale.setScalar(waveScale);
+            shockwaveSphere.material.opacity = Math.max(0, (1 - t) * 0.24);
+            shockwaveSphere.material.color.set(celebration === "max" ? 0xffbc72 : 0xb6f7ff);
+          } else {
+            shockwaveSphere.visible = false;
+            shockwaveSphere.material.opacity = 0;
+            shockwaveSphere.scale.setScalar(1);
+          }
+
+          trailLines.visible = celebration !== "rebirth";
+        }
+
+        function updateCinematicEffects(now) {
+          const p = populationProgress();
+          const t = celebrationProgress(now);
+          const impact = impactEnvelope(t);
+
+          bokehPass.uniforms.focus.value = 8.55 + 0.12 * Math.sin(now * 0.00035);
+
+          if (celebration) {
+            const baseBloom = window.innerWidth < 900 ? 0.70 : 0.88;
+            bloomPass.strength = baseBloom + (celebration === "max" ? 0.72 : 1.05) * impact;
+            cinematicPass.uniforms.vignetteAmount.value = 0.30 - 0.10 * impact;
+            camera.fov = celebration === "max" ? 48 + 1.15 * impact : 48 + 2.45 * impact;
+          } else {
+            bloomPass.strength = (window.innerWidth < 900 ? 0.52 : 0.70) + p * 0.10;
+            cinematicPass.uniforms.vignetteAmount.value = 0.34;
+            camera.fov = 48;
+          }
+
+          camera.updateProjectionMatrix();
+          cinematicPass.uniforms.time.value = now;
+        }
+
+        function updateDynamicLighting() {
+          const p = populationProgress();
+
+          const cold = new THREE.Color(0x78dfff);
+          const warm = new THREE.Color(0xff7040);
+
+          keyLight.color.copy(cold).lerp(new THREE.Color(0xffffff), 0.65);
+          rimLight.color.copy(cold).lerp(warm, p * 0.45);
+          warmLight.color.copy(new THREE.Color(0xff7a3d));
+          warmLight.intensity = 14 + p * 30;
+
+          coreMaterial.emissive.copy(populationColor(tempColor2)).multiplyScalar(0.18 + p * 0.18);
+          coreMaterial.emissiveIntensity = 0.55;
+
+          boundary.material.color.copy(cold).lerp(warm, p * 0.35);
+          shell.material.color.copy(cold).lerp(warm, p * 0.55);
+        }
+
+        function updateCamera(now) {
+          controls.autoRotate = !orbiting && !pointer.pressed;
+          controls.autoRotateSpeed =
+            celebration === "rebirth"
+              ? 0.14
+              : celebration === "max"
+                ? 0.22
+                : 0.38;
+
+          controls.target.set(
+            0.05 * Math.sin(now * 0.00017),
+            0.04 * Math.cos(now * 0.00013),
+            0
+          );
+
+          controls.update();
+
+          // Camera shake decay and offset calculation
+          if (cameraShake > 0.001) {
+            camera.position.x += (Math.random() - 0.5) * cameraShake;
+            camera.position.y += (Math.random() - 0.5) * cameraShake;
+            camera.position.z += (Math.random() - 0.5) * cameraShake;
+            cameraShake *= 0.88;
+          }
+        }
+
+        function animate(now) {
+          const rawDt = (now - lastFrame) / 1000;
+          lastFrame = now;
+          const dt = Math.min(rawDt, 0.035);
+
+          updateCamera(now);
+          updateArenaRadius(now);
+          updateDynamicLighting();
+          updateCinematicEffects(now);
+          updatePhysics(dt, now);
+          updateInstances(now);
+
+          composer.render(dt);
+          requestAnimationFrame(animate);
+        }
+
+        function setPointerFromEvent(event) {
+          const rect = renderer.domElement.getBoundingClientRect();
+          pointer.ndc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+          pointer.ndc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+          pointer.pointerType = event.pointerType || "mouse";
+          pointer.active = true;
+        }
+
+        async function startExperience() {
+          if (started) return;
+
+          const audioReady = await unlockAudio();
+
+          if (audioReady) {
+            playIgnitionSound();
+            await new Promise((resolve) => window.setTimeout(resolve, 110));
+          }
+
+          currentArenaRadius = ARENA_RADIUS;
+          postExplosionStarted = 0;
+          mergeShrinkStarted = 0;
+          mergeShrinkStartRadius = MAX_ARENA_RADIUS;
+          finalShrinkStarted = 0;
+          rebirthStartRadius = MIN_ARENA_RADIUS;
+
+          resetAt(new THREE.Vector3());
+
+          controls.enabled = true;
+          controls.autoRotate = true;
+
+          requestAnimationFrame(() => {
+            renderer.domElement.style.opacity = "1";
+            if (hudEl) hudEl.classList.add("visible");
+          });
+
+          if (!animationLoopStarted) {
+            animationLoopStarted = true;
+            lastFrame = performance.now();
+            requestAnimationFrame(animate);
+          }
+        }
+
+        renderer.domElement.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+
+          if (!started) {
+            void startExperience();
+            return;
+          }
+
+          setPointerFromEvent(event);
+
+          pointer.pressed = true;
+          orbiting = false;
+
+          gesture.down = true;
+          gesture.startedAt = performance.now();
+          gesture.startX = event.clientX;
+          gesture.startY = event.clientY;
+          gesture.moved = false;
+
+          try {
+            renderer.domElement.setPointerCapture(event.pointerId);
+          } catch (_) {}
+        });
+
+        renderer.domElement.addEventListener("pointermove", (event) => {
+          if (!started || !gesture.down) return;
+
+          setPointerFromEvent(event);
+
+          if (gesture.down) {
+            const moved = Math.hypot(
+              event.clientX - gesture.startX,
+              event.clientY - gesture.startY
+            );
+
+            if (moved >= MOVE_THRESHOLD_PX) {
+              gesture.moved = true;
+              orbiting = true;
+              pointer.pressed = false;
+            }
+          }
+        });
+
+        renderer.domElement.addEventListener("pointerup", (event) => {
+          event.preventDefault();
+
+          if (!gesture.down) return;
+
+          gesture.down = false;
+          pointer.pressed = false;
+          orbiting = false;
+
+          if (pointer.pointerType !== "mouse") {
+            pointer.active = false;
+          }
+
+          try {
+            renderer.domElement.releasePointerCapture(event.pointerId);
+          } catch (_) {}
+
+          gesture.moved = false;
+        });
+
+        renderer.domElement.addEventListener("pointercancel", () => {
+          gesture.down = false;
+          gesture.moved = false;
+          pointer.pressed = false;
+          orbiting = false;
+
+          if (pointer.pointerType !== "mouse") {
+            pointer.active = false;
+          }
+        });
+
+        renderer.domElement.addEventListener("pointerleave", () => {
+          if (!gesture.down) {
+            pointer.active = false;
+            pointer.pressed = false;
+            orbiting = false;
+          }
+        });
+
+        window.addEventListener("resize", () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+
+          const pr = renderPixelRatio();
+
+          renderer.setPixelRatio(pr);
+          renderer.setSize(window.innerWidth, window.innerHeight);
+
+          composer.setPixelRatio(pr);
+          composer.setSize(window.innerWidth, window.innerHeight);
+
+          bloomPass.setSize(window.innerWidth, window.innerHeight);
+          bloomPass.strength = window.innerWidth < 900 ? 0.58 : 0.78;
+
+          bokehPass.uniforms.aperture.value = window.innerWidth < 900 ? 0.00028 : 0.00042;
+          bokehPass.uniforms.maxblur.value = window.innerWidth < 900 ? 0.0038 : 0.0058;
+          cinematicPass.uniforms.grainAmount.value = window.innerWidth < 900 ? 0.016 : 0.012;
+
+          controls.update();
+        });
+
+        started = false;
+        paused = false;
+        particles = [];
+        particleMesh.count = 0;
+        glowMesh.count = 0;
+        trailGeometry.setDrawRange(0, 0);
+        sparkGeometry.setDrawRange(0, 0);
+
+        renderer.setClearColor(0x000000, 1);
+        renderer.clear();
+      } catch (error) {
+        console.error(error);
+        errorText.textContent =
+          "The 3D engine could not load or WebGL initialization failed. " +
+          (error && error.message ? error.message : "");
+        errorBox.classList.add("show");
+      }
     })();
   </script>
 </body>
