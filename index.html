@@ -2753,32 +2753,24 @@
           }
         }
 
-        async function startExperience() {
+        function startExperience() {
           if (started || starting) return;
           starting = true;
 
-          // The ignition tap should remove the invitation immediately,
-          // before waiting for Web Audio to resume.
+          // Remove the invitation immediately on the trusted user gesture.
           if (startPrompt) {
             startPrompt.classList.add("hidden");
             window.setTimeout(() => startPrompt.remove(), 180);
           }
 
           try {
-            // Await browser audio permission/resume inside the trusted user gesture
-            // path before starting any animation or collision timing.
-            const audioReady = await unlockAudio();
+            // MOBILE-SAFE STARTUP:
+            // Never block the visual experience on Web Audio. Some mobile
+            // browsers can keep AudioContext.resume() pending/suspended even
+            // after a valid tap. Start the world immediately and let audio
+            // unlock independently.
+            const audioUnlockPromise = unlockAudio();
 
-            if (audioReady) {
-              playIgnitionSound();
-
-              // Give the ignition sound a tiny head start so it is unmistakable
-              // before the first visual collision happens.
-              await new Promise((resolve) => window.setTimeout(resolve, 110));
-            }
-
-            // Start at normal sphere size with two particles already on a
-            // direct collision course. Their first impact arrives ~0.2–0.25s later.
             currentArenaRadius = ARENA_RADIUS;
             postExplosionStarted = 0;
             mergeShrinkStarted = 0;
@@ -2791,7 +2783,7 @@
             controls.enabled = true;
             controls.autoRotate = false;
 
-            // Fade the whole 3D scene out of black.
+            // Show the 3D world immediately; audio must never gate rendering.
             requestAnimationFrame(() => {
               renderer.domElement.style.opacity = "1";
               if (controlsPanel) controlsPanel.classList.add("visible");
@@ -2802,6 +2794,20 @@
               lastFrame = performance.now();
               requestAnimationFrame(animate);
             }
+
+            // Best-effort ignition sound. If the browser delays/denies audio,
+            // the visual experience still runs normally.
+            Promise.resolve(audioUnlockPromise)
+              .then((audioReady) => {
+                if (audioReady && started && soundEnabled) {
+                  playIgnitionSound();
+                }
+              })
+              .catch((error) => {
+                console.warn("Singularity audio unlock deferred:", error);
+              });
+          } catch (error) {
+            console.error("Singularity startup failed:", error);
           } finally {
             starting = false;
           }
@@ -2851,7 +2857,7 @@
           if (!started) {
             // pointerdown is used deliberately: it is a trusted user gesture,
             // so this same action can unlock Web Audio.
-            void startExperience();
+            startExperience();
             return;
           }
 
@@ -2902,6 +2908,14 @@
 
         renderer.domElement.addEventListener("pointerup", (event) => {
           event.preventDefault();
+
+          if (
+            started &&
+            soundEnabled &&
+            (!audioContext || audioContext.state !== "running")
+          ) {
+            void unlockAudio();
+          }
 
           if (!gesture.down) return;
 
