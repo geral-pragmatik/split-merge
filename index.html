@@ -6,15 +6,17 @@
   <meta name="theme-color" content="#000000" />
   <meta
     name="description"
-    content="Split / Merge 3D — an immersive generative particle system that expands, contracts and explosively rebirths."
+    content="Singularity — an immersive generative world of expansion, complexity, collapse and rebirth."
   />
-  <meta property="og:title" content="Split / Merge 3D" />
+  <meta property="og:title" content="Singularity — A Little Singularity" />
   <meta
     property="og:description"
-    content="Two particles expand into a hot 3D swarm, celebrate at maximum complexity, then merge and cool back to two."
+    content="Two particles collide and ignite a living 3D world that expands into complexity, collapses back to two, and is reborn."
   />
+  <meta property="og:image" content="og-preview.png" />
+  <meta name="twitter:card" content="summary_large_image" />
 
-  <title>Split / Merge 3D</title>
+  <title>Singularity</title>
 
   <script type="importmap">
     {
@@ -58,97 +60,163 @@
       height: 100%;
     }
 
-    .onboarding {
+    #startPrompt {
       position: fixed;
       inset: 0;
+      z-index: 10;
       display: grid;
       place-items: center;
-      z-index: 12;
       pointer-events: none;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 12px;
-      letter-spacing: 0.28em;
-      color: rgba(255, 255, 255, 0.75);
-      text-transform: uppercase;
-      transition: opacity 500ms ease;
-      animation: pulseOnboard 2.2s ease-in-out infinite;
-    }
-
-    .onboarding.hidden {
-      opacity: 0;
-    }
-
-    @keyframes pulseOnboard {
-      0%, 100% { opacity: 0.25; transform: scale(0.98); }
-      50% { opacity: 0.85; transform: scale(1.02); }
-    }
-
-    #hud {
-      position: fixed;
-      bottom: 24px;
-      left: 24px;
-      z-index: 10;
-      pointer-events: none;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 11px;
-      letter-spacing: 0.12em;
-      color: rgba(255, 255, 255, 0.45);
-      text-transform: uppercase;
-      transition: opacity 300ms ease;
-      opacity: 0;
-    }
-
-    #hud.visible {
       opacity: 1;
+      transition: opacity 180ms ease;
     }
 
-    #hudState {
-      font-weight: 700;
-      color: rgba(255, 255, 255, 0.85);
-      margin-bottom: 3px;
+    #startPrompt span {
+      color: rgba(230, 247, 255, 0.88);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: clamp(14px, 1.8vw, 20px);
+      font-weight: 500;
+      letter-spacing: 0.20em;
+      text-transform: uppercase;
+      text-align: center;
+      text-shadow:
+        0 0 10px rgba(126, 218, 255, 0.24),
+        0 0 26px rgba(126, 218, 255, 0.10);
+      animation: invitationPulse 2.4s ease-in-out infinite;
+      will-change: opacity, transform, text-shadow;
     }
 
-    .controls {
+    @keyframes invitationPulse {
+      0%, 100% {
+        opacity: 0.46;
+        transform: scale(0.985);
+        text-shadow:
+          0 0 8px rgba(126, 218, 255, 0.16),
+          0 0 20px rgba(126, 218, 255, 0.06);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1.015);
+        text-shadow:
+          0 0 14px rgba(126, 218, 255, 0.34),
+          0 0 34px rgba(126, 218, 255, 0.16);
+      }
+    }
+
+    #startPrompt.hidden {
+      opacity: 0;
+    }
+
+    #startPrompt.hidden span {
+      animation: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #startPrompt span {
+        animation: none;
+        opacity: 0.88;
+        transform: none;
+      }
+    }
+
+    #controls {
       position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 15;
+      top: max(18px, env(safe-area-inset-top));
+      right: max(18px, env(safe-area-inset-right));
+      z-index: 12;
       display: flex;
       gap: 10px;
       opacity: 0;
+      transform: translateY(-4px);
       pointer-events: none;
-      transition: opacity 400ms ease;
+      transition:
+        opacity 220ms ease,
+        transform 220ms ease;
     }
 
-    .controls.visible {
+    #controls.visible {
       opacity: 1;
+      transform: translateY(0);
       pointer-events: auto;
     }
 
-    .ctrl-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      color: rgba(255, 255, 255, 0.85);
-      font-size: 16px;
+    .controlButton {
+      width: 42px;
+      height: 42px;
       display: grid;
       place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 50%;
+      padding: 0;
+      background: rgba(8, 10, 14, 0.34);
+      color: rgba(255, 255, 255, 0.78);
       cursor: pointer;
-      user-select: none;
-      transition: background 200ms ease, border-color 200ms ease, transform 150ms ease;
+      -webkit-tap-highlight-color: transparent;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition:
+        color 160ms ease,
+        border-color 160ms ease,
+        background 160ms ease,
+        transform 120ms ease;
     }
 
-    .ctrl-btn:hover {
-      background: rgba(255, 255, 255, 0.18);
-      border-color: rgba(255, 255, 255, 0.35);
+    .controlButton:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.34);
+      background: rgba(16, 20, 28, 0.54);
     }
 
-    .ctrl-btn:active {
-      transform: scale(0.92);
+    .controlButton:active {
+      transform: scale(0.94);
+    }
+
+    .controlButton:focus-visible {
+      outline: 2px solid rgba(143, 233, 255, 0.72);
+      outline-offset: 3px;
+    }
+
+    .controlButton svg {
+      width: 19px;
+      height: 19px;
+      display: block;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Explicit specificity prevents the generic .controlButton svg rule
+       from making both sound icons visible at the same time. */
+    #soundButton .soundOnIcon {
+      display: block;
+    }
+
+    #soundButton .soundOffIcon {
+      display: none;
+    }
+
+    #soundButton.muted .soundOnIcon {
+      display: none;
+    }
+
+    #soundButton.muted .soundOffIcon {
+      display: block;
+    }
+
+    @media (max-width: 700px) {
+      #controls {
+        top: max(14px, env(safe-area-inset-top));
+        right: max(14px, env(safe-area-inset-right));
+        gap: 8px;
+      }
+
+      .controlButton {
+        width: 40px;
+        height: 40px;
+      }
     }
 
     .error {
@@ -174,25 +242,46 @@
 </head>
 
 <body>
-  <div id="stage" aria-label="Interactive 3D split and merge particle animation"></div>
+  <div id="stage" aria-label="Interactive 3D Singularity particle experience"></div>
+  <div id="startPrompt" aria-hidden="true"><span>Tap to Enter</span></div>
 
-  <div id="onboarding" class="onboarding">
-    <span>Tap to begin</span>
-  </div>
+  <div id="controls" aria-label="Experience controls">
+    <button
+      id="soundButton"
+      class="controlButton"
+      type="button"
+      aria-label="Turn sound off"
+      title="Sound on/off"
+    >
+      <svg class="soundOnIcon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M11 5 6.7 8.5H3.5v7h3.2L11 19z"></path>
+        <path d="M15 9.2a4 4 0 0 1 0 5.6"></path>
+        <path d="M17.8 6.5a7.7 7.7 0 0 1 0 11"></path>
+      </svg>
+      <svg class="soundOffIcon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M11 5 6.7 8.5H3.5v7h3.2L11 19z"></path>
+        <path d="m15.5 9 5 6"></path>
+        <path d="m20.5 9-5 6"></path>
+      </svg>
+    </button>
 
-  <div id="hud">
-    <div id="hudState">SPLIT</div>
-    <div id="hudCount">PARTICLES: 2 / 256</div>
-  </div>
-
-  <div id="controls" class="controls">
-    <button id="btnMute" class="ctrl-btn" aria-label="Mute audio" title="Toggle Audio">🔊</button>
-    <button id="btnRestart" class="ctrl-btn" aria-label="Restart cycle" title="Restart Simulation">↺</button>
+    <button
+      id="restartButton"
+      class="controlButton"
+      type="button"
+      aria-label="Restart Singularity"
+      title="Restart"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 11a8 8 0 1 0-2.3 5.7"></path>
+        <path d="M20 5v6h-6"></path>
+      </svg>
+    </button>
   </div>
 
   <div id="error" class="error">
     <div>
-      <h2>Split / Merge 3D could not start</h2>
+      <h2>Singularity could not start</h2>
       <p id="errorText">Your browser may not support the required WebGL features.</p>
     </div>
   </div>
@@ -211,19 +300,14 @@
     (async () => {
       const errorBox = document.getElementById("error");
       const errorText = document.getElementById("errorText");
-      const hudEl = document.getElementById("hud");
-      const hudStateEl = document.getElementById("hudState");
-      const hudCountEl = document.getElementById("hudCount");
-      const onboardingEl = document.getElementById("onboarding");
-      const controlsEl = document.getElementById("controls");
-      const btnMute = document.getElementById("btnMute");
-      const btnRestart = document.getElementById("btnRestart");
-
-      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const isMobile = window.innerWidth < 900 || ('ontouchstart' in window);
 
       try {
+
         const stage = document.getElementById("stage");
+        const startPrompt = document.getElementById("startPrompt");
+        const controlsPanel = document.getElementById("controls");
+        const soundButton = document.getElementById("soundButton");
+        const restartButton = document.getElementById("restartButton");
 
         const ARENA_RADIUS = 3.0;
         const VISUAL_RADIUS = 0.075;
@@ -240,8 +324,6 @@
         let maxBalls = 256;
         let gravityStrength = 0.36;
         let trailLength = 18;
-        let cameraShake = 0;
-        let isMuted = false;
 
         const MAX_ARENA_RADIUS = ARENA_RADIUS * 1.075;
         const MIN_ARENA_RADIUS = ARENA_RADIUS * 0.25;
@@ -253,9 +335,13 @@
         let finalShrinkStarted = 0;
         let rebirthStartRadius = MIN_ARENA_RADIUS;
 
-        const FINAL_MIN_RADIUS = VISUAL_RADIUS + COLLISION_DISTANCE * 0.5 + 0.005;
-        const MERGE_SHRINK_RATE = 0.54;
-        const FINAL_SHRINK_RATE = 0.68;
+        // Merge and the final-two state now share one uninterrupted
+        // compression curve. There is no radius handoff or second shrink.
+        // This safety floor is just large enough for the final visible pair
+        // to remain physically valid until their natural collision.
+        const FINAL_MIN_RADIUS =
+          VISUAL_RADIUS + COLLISION_DISTANCE * 0.5 + 0.005;
+        const MERGE_SHRINK_RATE = 0.54; // continuous world units per second
 
         let particles = [];
         let nextId = 1;
@@ -263,6 +349,8 @@
         let celebration = null;
         let celebrationStarted = 0;
         let started = false;
+        let starting = false;
+        let paused = false;
         let lastFrame = performance.now();
         let trailTick = 0;
 
@@ -271,6 +359,8 @@
           startedAt: 0,
           startX: 0,
           startY: 0,
+          lastX: 0,
+          lastY: 0,
           moved: false
         };
 
@@ -283,10 +373,25 @@
         };
 
         let orbiting = false;
+
+        // Passive camera drift. Horizontal user orbiting changes the
+        // left/right direction; when released, the camera continues that way.
+        // A synchronized vertical phase creates a diagonal ~45° screen-space drift.
+        let cameraDriftDirection = 1;
+        let cameraDriftPhase = 0;
+        const CAMERA_DRIFT_SPEED = 0.44;
+        const CAMERA_VERTICAL_DRIFT_SPEED = 0.44;
+        const CAMERA_POLAR_SWAY_MIN = -0.65;
+        const CAMERA_POLAR_SWAY_MAX = 0.65;
+
         let audioContext = null;
         let audioMaster = null;
         let audioCompressor = null;
+        let audioOutput = null;
         let animationLoopStarted = false;
+        let soundEnabled = true;
+
+        const MASTER_GAIN = 0.72;
 
         const soundState = {
           splitLastAt: 0,
@@ -295,31 +400,21 @@
           maxVoices: 18
         };
 
-        const SCALE_FREQS = [
-          130.81, 146.83, 164.81, 196.00, 220.00,
-          261.63, 293.66, 329.63, 392.00, 440.00,
-          523.25, 587.33, 659.25, 783.99, 880.00,
-          1046.50, 1174.66, 1318.51, 1567.98, 1760.00
-        ];
-
-        function getQuantizedPitch(progress) {
-          const clamped = THREE.MathUtils.clamp(progress, 0, 1);
-          const index = Math.floor(clamped * (SCALE_FREQS.length - 1));
-          return SCALE_FREQS[index];
-        }
-
         async function unlockAudio() {
           try {
             if (!audioContext) {
               const AudioContextClass =
                 window.AudioContext || window.webkitAudioContext;
 
-              if (!AudioContextClass) return false;
+              if (!AudioContextClass) {
+                console.warn("Singularity audio: Web Audio API unavailable");
+                return false;
+              }
 
               audioContext = new AudioContextClass();
 
               audioMaster = audioContext.createGain();
-              audioMaster.gain.value = isMuted ? 0 : 0.72;
+              audioMaster.gain.value = MASTER_GAIN;
 
               audioCompressor = audioContext.createDynamicsCompressor();
               audioCompressor.threshold.value = -18;
@@ -328,25 +423,34 @@
               audioCompressor.attack.value = 0.003;
               audioCompressor.release.value = 0.18;
 
+              audioOutput = audioContext.createGain();
+              audioOutput.gain.value = soundEnabled ? 1 : 0;
+
               audioMaster.connect(audioCompressor);
-              audioCompressor.connect(audioContext.destination);
+              audioCompressor.connect(audioOutput);
+              audioOutput.connect(audioContext.destination);
             }
 
             if (audioContext.state !== "running") {
               await audioContext.resume();
             }
 
+            console.info("Singularity audio:", audioContext.state);
             return audioContext.state === "running";
           } catch (error) {
-            console.error("Audio failed to start:", error);
+            console.error("Singularity audio failed to start:", error);
             return false;
           }
         }
 
         function playIgnitionSound() {
-          if (!audioContext || audioContext.state !== "running" || !audioMaster || isMuted) return;
+          if (!audioContext || audioContext.state !== "running" || !audioMaster) {
+            return;
+          }
 
           const t = audioContext.currentTime;
+
+          // Deliberately easy-to-hear test tone: short, bright, and distinct.
           const osc = audioContext.createOscillator();
           const gain = audioContext.createGain();
 
@@ -366,12 +470,10 @@
         }
 
         function createStereoOutput(worldPosition, gainValue) {
-          if (!audioContext || !audioMaster || isMuted) return null;
+          if (!audioContext || !audioMaster) return null;
 
           const gain = audioContext.createGain();
           gain.gain.value = gainValue;
-
-          let tailNode = gain;
 
           if (audioContext.createStereoPanner && worldPosition) {
             const projected = worldPosition.clone().project(camera);
@@ -379,16 +481,16 @@
             pan.pan.value = THREE.MathUtils.clamp(projected.x, -0.85, 0.85);
             gain.connect(pan);
             pan.connect(audioMaster);
-            tailNode = gain;
           } else {
             gain.connect(audioMaster);
           }
 
-          return { gain, tailNode };
+          return { gain };
         }
 
         function registerVoice(durationSeconds) {
           soundState.activeVoices++;
+
           window.setTimeout(() => {
             soundState.activeVoices = Math.max(0, soundState.activeVoices - 1);
           }, Math.ceil(durationSeconds * 1000) + 80);
@@ -398,7 +500,6 @@
           if (
             !audioContext ||
             audioContext.state !== "running" ||
-            isMuted ||
             soundState.activeVoices >= soundState.maxVoices
           ) return;
 
@@ -414,8 +515,13 @@
           const t = audioContext.currentTime;
           const progress = populationProgress();
 
-          const baseFreq = getQuantizedPitch(progress) * (0.97 + Math.random() * 0.06);
-          const volume = THREE.MathUtils.lerp(0.095, 0.040, progress);
+          // Higher and glassier while the system is sparse; warmer/lower near MAX.
+          const baseFreq =
+            THREE.MathUtils.lerp(1080, 610, progress) *
+            (0.93 + Math.random() * 0.14);
+
+          const volume =
+            THREE.MathUtils.lerp(0.095, 0.040, progress);
 
           const output = createStereoOutput(worldPosition, volume);
           if (!output) return;
@@ -450,17 +556,12 @@
           partial.stop(t + 0.09);
 
           registerVoice(0.18);
-
-          if ("vibrate" in navigator && !prefersReducedMotion && Math.random() < 0.2) {
-            navigator.vibrate(5);
-          }
         }
 
         function playMergeSound(worldPosition) {
           if (
             !audioContext ||
             audioContext.state !== "running" ||
-            isMuted ||
             soundState.activeVoices >= soundState.maxVoices
           ) return;
 
@@ -474,14 +575,20 @@
           soundState.mergeLastAt = nowMs;
 
           const t = audioContext.currentTime;
-          const compression = THREE.MathUtils.clamp(
-            1 - currentArenaRadius / MAX_ARENA_RADIUS,
-            0,
-            1
-          );
+          const compression =
+            THREE.MathUtils.clamp(
+              1 - currentArenaRadius / MAX_ARENA_RADIUS,
+              0,
+              1
+            );
 
-          const baseFreq = getQuantizedPitch(1 - compression) * 0.5 * (0.97 + Math.random() * 0.06);
-          const volume = THREE.MathUtils.lerp(0.075, 0.115, compression);
+          // Gets deeper as the sphere contracts.
+          const baseFreq =
+            THREE.MathUtils.lerp(235, 105, compression) *
+            (0.94 + Math.random() * 0.12);
+
+          const volume =
+            THREE.MathUtils.lerp(0.075, 0.115, compression);
 
           const output = createStereoOutput(worldPosition, volume);
           if (!output) return;
@@ -500,32 +607,25 @@
           osc.stop(t + 0.21);
 
           registerVoice(0.21);
-
-          if ("vibrate" in navigator && !prefersReducedMotion && Math.random() < 0.25) {
-            navigator.vibrate(8);
-          }
         }
 
         function playRebirthSound(worldPosition) {
-          cameraShake = prefersReducedMotion ? 0.10 : 0.55;
-          if ("vibrate" in navigator && !prefersReducedMotion) {
-            navigator.vibrate([15, 30, 60]);
-          }
-
-          if (!audioContext || audioContext.state !== "running" || isMuted) return;
+          if (!audioContext || audioContext.state !== "running") return;
 
           const t = audioContext.currentTime;
 
+          // Momentarily duck ordinary collision density under the rebirth impact.
           if (audioMaster) {
             audioMaster.gain.cancelScheduledValues(t);
             audioMaster.gain.setValueAtTime(0.46, t);
             audioMaster.gain.linearRampToValueAtTime(0.58, t + 0.34);
-            audioMaster.gain.linearRampToValueAtTime(0.52, t + 0.90);
+            audioMaster.gain.linearRampToValueAtTime(MASTER_GAIN, t + 0.90);
           }
 
           const output = createStereoOutput(worldPosition, 0.19);
           if (!output) return;
 
+          // Deep impact.
           const sub = audioContext.createOscillator();
           sub.type = "sine";
           sub.frequency.setValueAtTime(92, t);
@@ -539,6 +639,7 @@
           sub.connect(subGain);
           subGain.connect(output.gain);
 
+          // Bright "singularity" crack.
           const crack = audioContext.createOscillator();
           crack.type = "triangle";
           crack.frequency.setValueAtTime(1480, t);
@@ -552,8 +653,13 @@
           crack.connect(crackGain);
           crackGain.connect(output.gain);
 
+          // Short noise bloom / expanding air.
           const bufferLength = Math.max(1, Math.floor(audioContext.sampleRate * 0.48));
-          const noiseBuffer = audioContext.createBuffer(1, bufferLength, audioContext.sampleRate);
+          const noiseBuffer = audioContext.createBuffer(
+            1,
+            bufferLength,
+            audioContext.sampleRate
+          );
           const data = noiseBuffer.getChannelData(0);
 
           for (let i = 0; i < bufferLength; i++) {
@@ -591,68 +697,96 @@
         }
 
         function playMaxSound() {
-          cameraShake = prefersReducedMotion ? 0.08 : 0.40;
-          if ("vibrate" in navigator && !prefersReducedMotion) {
-            navigator.vibrate([30, 20, 50]);
+          if (!audioContext || audioContext.state !== "running" || !audioMaster) {
+            return;
           }
-
-          if (!audioContext || audioContext.state !== "running" || !audioMaster || isMuted) return;
 
           const t = audioContext.currentTime;
 
-          audioMaster.gain.cancelScheduledValues(t);
-          audioMaster.gain.setValueAtTime(0.46, t);
-          audioMaster.gain.linearRampToValueAtTime(0.62, t + 0.055);
-          audioMaster.gain.linearRampToValueAtTime(0.52, t + 0.85);
+          // Smooth MAX blast:
+          // deep sub impact + rounded body + filtered air burst + rumble tail.
+          // No square-wave crack, so the peak stays powerful without sounding harsh.
 
+          const eventGain = audioContext.createGain();
+          eventGain.gain.setValueAtTime(0.0001, t);
+          eventGain.gain.exponentialRampToValueAtTime(0.92, t + 0.018);
+          eventGain.gain.exponentialRampToValueAtTime(0.0001, t + 1.10);
+          eventGain.connect(audioMaster);
+
+          // SUB IMPACT
           const sub = audioContext.createOscillator();
           const subGain = audioContext.createGain();
 
           sub.type = "sine";
-          sub.frequency.setValueAtTime(118, t);
-          sub.frequency.exponentialRampToValueAtTime(42, t + 0.62);
+          sub.frequency.setValueAtTime(112, t);
+          sub.frequency.exponentialRampToValueAtTime(38, t + 0.68);
 
           subGain.gain.setValueAtTime(0.0001, t);
-          subGain.gain.exponentialRampToValueAtTime(0.22, t + 0.012);
-          subGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.72);
+          subGain.gain.exponentialRampToValueAtTime(0.17, t + 0.024);
+          subGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.76);
 
           sub.connect(subGain);
-          subGain.connect(audioMaster);
+          subGain.connect(eventGain);
 
+          // ROUNDED IMPACT BODY
           const body = audioContext.createOscillator();
           const bodyGain = audioContext.createGain();
 
-          body.type = "triangle";
-          body.frequency.setValueAtTime(210, t);
-          body.frequency.exponentialRampToValueAtTime(72, t + 0.34);
+          body.type = "sine";
+          body.frequency.setValueAtTime(245, t);
+          body.frequency.exponentialRampToValueAtTime(92, t + 0.38);
 
           bodyGain.gain.setValueAtTime(0.0001, t);
-          bodyGain.gain.exponentialRampToValueAtTime(0.14, t + 0.008);
-          bodyGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+          bodyGain.gain.exponentialRampToValueAtTime(0.095, t + 0.018);
+          bodyGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.48);
 
           body.connect(bodyGain);
-          bodyGain.connect(audioMaster);
+          bodyGain.connect(eventGain);
 
-          const crack = audioContext.createOscillator();
-          crack.type = "square";
-          crack.frequency.setValueAtTime(1850, t);
-          crack.frequency.exponentialRampToValueAtTime(420, t + 0.095);
+          // SOFT TRANSIENT: replaces the previous square-wave crack.
+          const transient = audioContext.createOscillator();
+          const transientGain = audioContext.createGain();
+          const transientFilter = audioContext.createBiquadFilter();
 
-          const crackGain = audioContext.createGain();
-          crackGain.gain.setValueAtTime(0.0001, t);
-          crackGain.gain.exponentialRampToValueAtTime(0.055, t + 0.002);
-          crackGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
+          transient.type = "triangle";
+          transient.frequency.setValueAtTime(980, t);
+          transient.frequency.exponentialRampToValueAtTime(310, t + 0.20);
 
-          crack.connect(crackGain);
-          crackGain.connect(audioMaster);
+          transientFilter.type = "lowpass";
+          transientFilter.frequency.setValueAtTime(1800, t);
+          transientFilter.frequency.exponentialRampToValueAtTime(720, t + 0.22);
+          transientFilter.Q.value = 0.55;
 
-          const noiseLength = Math.max(1, Math.floor(audioContext.sampleRate * 0.38));
-          const noiseBuffer = audioContext.createBuffer(1, noiseLength, audioContext.sampleRate);
+          transientGain.gain.setValueAtTime(0.0001, t);
+          transientGain.gain.exponentialRampToValueAtTime(0.036, t + 0.012);
+          transientGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+
+          transient.connect(transientFilter);
+          transientFilter.connect(transientGain);
+          transientGain.connect(eventGain);
+
+          // FILTERED AIR BLAST
+          const noiseLength = Math.max(
+            1,
+            Math.floor(audioContext.sampleRate * 0.52)
+          );
+
+          const noiseBuffer = audioContext.createBuffer(
+            1,
+            noiseLength,
+            audioContext.sampleRate
+          );
+
           const noiseData = noiseBuffer.getChannelData(0);
 
           for (let i = 0; i < noiseLength; i++) {
-            const x = i / noiseLength;
-            const envelope = Math.pow(1 - x, 2.2);
+            const x = i / Math.max(1, noiseLength - 1);
+
+            // Smooth attack and decay so the burst has no digital edge.
+            const attack = Math.min(1, x / 0.055);
+            const decay = Math.pow(1 - x, 1.7);
+            const envelope = Math.sin(attack * Math.PI * 0.5) * decay;
+
             noiseData[i] = (Math.random() * 2 - 1) * envelope;
           }
 
@@ -660,46 +794,48 @@
           noise.buffer = noiseBuffer;
 
           const noiseFilter = audioContext.createBiquadFilter();
-          noiseFilter.type = "bandpass";
-          noiseFilter.frequency.setValueAtTime(900, t);
-          noiseFilter.frequency.exponentialRampToValueAtTime(260, t + 0.34);
-          noiseFilter.Q.value = 0.55;
+          noiseFilter.type = "lowpass";
+          noiseFilter.frequency.setValueAtTime(1700, t);
+          noiseFilter.frequency.exponentialRampToValueAtTime(260, t + 0.48);
+          noiseFilter.Q.value = 0.42;
 
           const noiseGain = audioContext.createGain();
           noiseGain.gain.setValueAtTime(0.0001, t);
-          noiseGain.gain.exponentialRampToValueAtTime(0.12, t + 0.006);
-          noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
+          noiseGain.gain.exponentialRampToValueAtTime(0.070, t + 0.028);
+          noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.50);
 
           noise.connect(noiseFilter);
-          noiseFilter.connect(audioMaster);
+          noiseFilter.connect(noiseGain);
+          noiseGain.connect(eventGain);
 
+          // LOW RUMBLE TAIL
           const rumble = audioContext.createOscillator();
           const rumbleGain = audioContext.createGain();
 
           rumble.type = "sine";
-          rumble.frequency.setValueAtTime(62, t + 0.05);
-          rumble.frequency.exponentialRampToValueAtTime(31, t + 0.95);
+          rumble.frequency.setValueAtTime(58, t + 0.04);
+          rumble.frequency.exponentialRampToValueAtTime(29, t + 1.02);
 
           rumbleGain.gain.setValueAtTime(0.0001, t);
-          rumbleGain.gain.exponentialRampToValueAtTime(0.085, t + 0.08);
-          rumbleGain.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
+          rumbleGain.gain.exponentialRampToValueAtTime(0.070, t + 0.09);
+          rumbleGain.gain.exponentialRampToValueAtTime(0.0001, t + 1.08);
 
           rumble.connect(rumbleGain);
-          rumbleGain.connect(audioMaster);
+          rumbleGain.connect(eventGain);
 
           sub.start(t);
           body.start(t);
-          crack.start(t);
+          transient.start(t);
           noise.start(t);
-          rumble.start(t + 0.05);
+          rumble.start(t + 0.04);
 
-          sub.stop(t + 0.75);
-          body.stop(t + 0.46);
-          crack.stop(t + 0.13);
-          noise.stop(t + 0.40);
-          rumble.stop(t + 1.05);
+          sub.stop(t + 0.80);
+          body.stop(t + 0.52);
+          transient.stop(t + 0.28);
+          noise.stop(t + 0.54);
+          rumble.stop(t + 1.12);
 
-          registerVoice(1.05);
+          registerVoice(1.12);
         }
 
         function playCollisionSound(type, worldPosition) {
@@ -726,14 +862,14 @@
         camera.position.set(0.85, 0.38, 8.7);
 
         const renderer = new THREE.WebGLRenderer({
-          antialias: !isMobile,
+          antialias: true,
           powerPreference: "high-performance"
         });
 
         const renderPixelRatio = () =>
           Math.min(
             window.devicePixelRatio || 1,
-            isMobile ? 1.25 : 1.65
+            window.innerWidth < 900 ? 1.35 : 1.65
           );
 
         renderer.setPixelRatio(renderPixelRatio());
@@ -741,10 +877,10 @@
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.12;
-
-        renderer.shadowMap.enabled = !isMobile;
+        renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
+        // Pure black opening. The WebGL canvas fades in only after ignition.
         renderer.domElement.style.opacity = "0";
         renderer.domElement.style.transition = "opacity 420ms ease";
         stage.appendChild(renderer.domElement);
@@ -759,10 +895,11 @@
         controls.maxPolarAngle = Math.PI * 0.80;
         controls.rotateSpeed = 0.7;
         controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.38;
+        controls.autoRotateSpeed = CAMERA_DRIFT_SPEED * cameraDriftDirection;
         controls.target.set(0, 0, 0);
         controls.update();
 
+        // Procedural studio environment: realistic highlights/reflections without image assets.
         const pmremGenerator = new THREE.PMREMGenerator(renderer);
         const roomEnvironment = new RoomEnvironment();
         const environmentTarget = pmremGenerator.fromScene(roomEnvironment, 0.04);
@@ -773,6 +910,7 @@
         const world = new THREE.Group();
         scene.add(world);
 
+        // Very faint background points help the eye read camera motion and depth.
         const starCount = 140;
         const starPositions = new Float32Array(starCount * 3);
 
@@ -786,7 +924,10 @@
         }
 
         const starGeometry = new THREE.BufferGeometry();
-        starGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
+        starGeometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(starPositions, 3)
+        );
 
         const stars = new THREE.Points(
           starGeometry,
@@ -798,15 +939,22 @@
             depthWrite: false
           })
         );
+
         scene.add(stars);
 
         function randomDirectionForBackground() {
           const z = Math.random() * 2 - 1;
           const theta = Math.random() * Math.PI * 2;
           const rr = Math.sqrt(Math.max(0, 1 - z * z));
-          return new THREE.Vector3(rr * Math.cos(theta), rr * Math.sin(theta), z);
+          return new THREE.Vector3(
+            rr * Math.cos(theta),
+            rr * Math.sin(theta),
+            z
+          );
         }
 
+        // Cinematic post-processing: real bloom, subtle depth of field,
+        // film grain and vignette. Kept deliberately restrained.
         const composer = new EffectComposer(renderer);
         composer.setPixelRatio(renderPixelRatio());
         composer.setSize(window.innerWidth, window.innerHeight);
@@ -816,14 +964,14 @@
 
         const bokehPass = new BokehPass(scene, camera, {
           focus: 8.55,
-          aperture: isMobile ? 0.00020 : 0.00042,
-          maxblur: isMobile ? 0.0028 : 0.0058
+          aperture: window.innerWidth < 900 ? 0.00028 : 0.00042,
+          maxblur: window.innerWidth < 900 ? 0.0038 : 0.0058
         });
         composer.addPass(bokehPass);
 
         const bloomPass = new UnrealBloomPass(
           new THREE.Vector2(window.innerWidth, window.innerHeight),
-          isMobile ? 0.52 : 0.78,
+          window.innerWidth < 900 ? 0.58 : 0.78,
           0.42,
           0.72
         );
@@ -833,7 +981,7 @@
           uniforms: {
             tDiffuse: { value: null },
             time: { value: 0 },
-            grainAmount: { value: isMobile ? 0.012 : 0.012 },
+            grainAmount: { value: window.innerWidth < 900 ? 0.016 : 0.012 },
             vignetteAmount: { value: 0.34 }
           },
           vertexShader: `
@@ -856,11 +1004,14 @@
 
             void main() {
               vec4 color = texture2D(tDiffuse, vUv);
+
               float dist = distance(vUv, vec2(0.5));
               float vignette = smoothstep(0.30, 0.73, dist);
               color.rgb *= 1.0 - vignette * vignetteAmount;
+
               float noise = hash(vUv * vec2(1511.0, 893.0)) - 0.5;
               color.rgb += noise * grainAmount;
+
               gl_FragColor = color;
             }
           `
@@ -872,12 +1023,13 @@
         const outputPass = new OutputPass();
         composer.addPass(outputPass);
 
+        // Lighting gives the particles actual volume instead of flat color.
         const ambientLight = new THREE.HemisphereLight(0x8fdcff, 0x140a1f, 1.55);
         scene.add(ambientLight);
 
         const keyLight = new THREE.PointLight(0xffffff, 48, 22, 2);
         keyLight.position.set(4.6, 5.4, 6.2);
-        keyLight.castShadow = !isMobile;
+        keyLight.castShadow = true;
         keyLight.shadow.mapSize.set(1024, 1024);
         keyLight.shadow.bias = -0.0005;
         scene.add(keyLight);
@@ -892,6 +1044,7 @@
 
         const sphereGeometry = new THREE.SphereGeometry(ARENA_RADIUS, 72, 48);
 
+        // Subtle glass shell: visible enough to define the arena, but not a wireframe cage.
         const boundary = new THREE.Mesh(
           sphereGeometry,
           new THREE.MeshPhysicalMaterial({
@@ -913,6 +1066,7 @@
         boundary.renderOrder = 4;
         world.add(boundary);
 
+        // Inner atmospheric shell adds depth and a faint volume cue.
         const shell = new THREE.Mesh(
           sphereGeometry,
           new THREE.MeshBasicMaterial({
@@ -941,6 +1095,7 @@
         shockwaveSphere.renderOrder = 5;
         world.add(shockwaveSphere);
 
+        // A faint equatorial ring gives the glass sphere a more believable contour.
         const ring = new THREE.Mesh(
           new THREE.TorusGeometry(ARENA_RADIUS * 1.005, 0.007, 8, 160),
           new THREE.MeshBasicMaterial({
@@ -964,11 +1119,15 @@
           vertexColors: false
         });
 
-        const particleMesh = new THREE.InstancedMesh(coreGeometry, coreMaterial, MAX_ALLOWED);
+        const particleMesh = new THREE.InstancedMesh(
+          coreGeometry,
+          coreMaterial,
+          MAX_ALLOWED
+        );
         particleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         particleMesh.count = 0;
-        particleMesh.castShadow = !isMobile;
-        particleMesh.receiveShadow = !isMobile;
+        particleMesh.castShadow = true;
+        particleMesh.receiveShadow = true;
         world.add(particleMesh);
 
         const glowGeometry = new THREE.SphereGeometry(VISUAL_RADIUS * 2.7, 10, 7);
@@ -980,7 +1139,11 @@
           blending: THREE.AdditiveBlending
         });
 
-        const glowMesh = new THREE.InstancedMesh(glowGeometry, glowMaterial, MAX_ALLOWED);
+        const glowMesh = new THREE.InstancedMesh(
+          glowGeometry,
+          glowMaterial,
+          MAX_ALLOWED
+        );
         glowMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         glowMesh.count = 0;
         world.add(glowMesh);
@@ -990,8 +1153,14 @@
         const trailColors = new Float32Array(MAX_TRAIL_VERTICES * 3);
 
         const trailGeometry = new THREE.BufferGeometry();
-        trailGeometry.setAttribute("position", new THREE.BufferAttribute(trailPositions, 3).setUsage(THREE.DynamicDrawUsage));
-        trailGeometry.setAttribute("color", new THREE.BufferAttribute(trailColors, 3).setUsage(THREE.DynamicDrawUsage));
+        trailGeometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(trailPositions, 3).setUsage(THREE.DynamicDrawUsage)
+        );
+        trailGeometry.setAttribute(
+          "color",
+          new THREE.BufferAttribute(trailColors, 3).setUsage(THREE.DynamicDrawUsage)
+        );
         trailGeometry.setDrawRange(0, 0);
 
         const trailMaterial = new THREE.LineBasicMaterial({
@@ -1010,12 +1179,18 @@
         const sparkColors = new Float32Array(MAX_SPARKS * 3);
         const sparkGeometry = new THREE.BufferGeometry();
 
-        sparkGeometry.setAttribute("position", new THREE.BufferAttribute(sparkPositions, 3).setUsage(THREE.DynamicDrawUsage));
-        sparkGeometry.setAttribute("color", new THREE.BufferAttribute(sparkColors, 3).setUsage(THREE.DynamicDrawUsage));
+        sparkGeometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(sparkPositions, 3).setUsage(THREE.DynamicDrawUsage)
+        );
+        sparkGeometry.setAttribute(
+          "color",
+          new THREE.BufferAttribute(sparkColors, 3).setUsage(THREE.DynamicDrawUsage)
+        );
         sparkGeometry.setDrawRange(0, 0);
 
         const sparkMaterial = new THREE.PointsMaterial({
-          size: 0.055,
+          size: 0.068,
           sizeAttenuation: true,
           vertexColors: true,
           transparent: true,
@@ -1028,6 +1203,377 @@
         world.add(sparkPoints);
 
         let sparks = [];
+
+        // --------------------------------------------------------
+        // Local collision VFX
+        // Split = short outward sparks
+        // Merge = bright local flash + contracting "implosion" halo
+        // --------------------------------------------------------
+
+        const LOCAL_EFFECT_POOL_SIZE = 30;
+        const SPLIT_FRAGMENT_POOL_SIZE = 180;
+
+        const mergeEffects = [];
+        const splitEffects = [];
+        const splitFragments = [];
+
+        function createRadialGlowTexture() {
+          const size = 128;
+          const canvas = document.createElement("canvas");
+          canvas.width = size;
+          canvas.height = size;
+
+          const ctx = canvas.getContext("2d");
+          const gradient = ctx.createRadialGradient(
+            size * 0.5,
+            size * 0.5,
+            0,
+            size * 0.5,
+            size * 0.5,
+            size * 0.5
+          );
+
+          gradient.addColorStop(0.00, "rgba(255,255,255,1)");
+          gradient.addColorStop(0.14, "rgba(255,255,255,0.95)");
+          gradient.addColorStop(0.42, "rgba(155,225,255,0.38)");
+          gradient.addColorStop(1.00, "rgba(80,160,255,0)");
+
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, size, size);
+
+          const texture = new THREE.CanvasTexture(canvas);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.needsUpdate = true;
+          return texture;
+        }
+
+        function createRingTexture() {
+          const size = 128;
+          const canvas = document.createElement("canvas");
+          canvas.width = size;
+          canvas.height = size;
+
+          const ctx = canvas.getContext("2d");
+          const cx = size * 0.5;
+          const cy = size * 0.5;
+          const r = size * 0.34;
+
+          const gradient = ctx.createRadialGradient(
+            cx, cy, r * 0.74,
+            cx, cy, r * 1.28
+          );
+
+          gradient.addColorStop(0.00, "rgba(255,255,255,0)");
+          gradient.addColorStop(0.40, "rgba(210,245,255,0.05)");
+          gradient.addColorStop(0.58, "rgba(235,252,255,0.95)");
+          gradient.addColorStop(0.72, "rgba(150,225,255,0.46)");
+          gradient.addColorStop(1.00, "rgba(80,150,255,0)");
+
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, size, size);
+
+          const texture = new THREE.CanvasTexture(canvas);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.needsUpdate = true;
+          return texture;
+        }
+
+        const localGlowTexture = createRadialGlowTexture();
+        const mergeWaveTexture = createRingTexture();
+
+        for (let i = 0; i < LOCAL_EFFECT_POOL_SIZE; i++) {
+          const splitMaterial = new THREE.SpriteMaterial({
+            map: localGlowTexture,
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            depthTest: false
+          });
+
+          const splitFlash = new THREE.Sprite(splitMaterial);
+          splitFlash.renderOrder = 8;
+          splitFlash.visible = false;
+          world.add(splitFlash);
+
+          splitEffects.push({
+            active: false,
+            life: 0,
+            maxLife: 0.20,
+            flash: splitFlash
+          });
+
+          const waveMaterial = new THREE.SpriteMaterial({
+            map: mergeWaveTexture,
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            depthTest: false
+          });
+
+          const wave = new THREE.Sprite(waveMaterial);
+          wave.renderOrder = 8;
+          wave.visible = false;
+          world.add(wave);
+
+          mergeEffects.push({
+            active: false,
+            life: 0,
+            maxLife: 0.42,
+            wave
+          });
+        }
+
+        for (let i = 0; i < SPLIT_FRAGMENT_POOL_SIZE; i++) {
+          const material = new THREE.SpriteMaterial({
+            map: localGlowTexture,
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            depthTest: false
+          });
+
+          const sprite = new THREE.Sprite(material);
+          sprite.renderOrder = 8;
+          sprite.visible = false;
+          world.add(sprite);
+
+          splitFragments.push({
+            active: false,
+            life: 0,
+            maxLife: 0.24,
+            drag: 0.94,
+            startScale: 0.04,
+            pos: new THREE.Vector3(),
+            vel: new THREE.Vector3(),
+            sprite
+          });
+        }
+
+        function getAvailableEffect(pool) {
+          let effect = pool.find((item) => !item.active);
+
+          if (!effect) {
+            effect = pool.reduce((oldest, item) =>
+              item.life > oldest.life ? item : oldest
+            );
+          }
+
+          return effect;
+        }
+
+        function spawnSplitDebris(position, baseColor) {
+          const white = new THREE.Color(0xffffff);
+          const fragmentCount =
+            particles.length > 180 ? 7 :
+            particles.length > 90 ? 10 :
+            particles.length > 30 ? 13 :
+            16;
+
+          for (let i = 0; i < fragmentCount; i++) {
+            const frag = getAvailableEffect(splitFragments);
+            const dir = randomUnitVector();
+            const speed = 1.1 + Math.random() * 2.0;
+
+            frag.active = true;
+            frag.life = 0;
+            frag.maxLife = 0.20 + Math.random() * 0.22;
+            frag.drag = 0.90 + Math.random() * 0.05;
+
+            frag.pos.copy(position).addScaledVector(dir, 0.008 + Math.random() * 0.02);
+            frag.vel.copy(dir).multiplyScalar(speed);
+
+            frag.sprite.position.copy(frag.pos);
+            frag.startScale = 0.038 + Math.random() * 0.038;
+            frag.sprite.scale.setScalar(frag.startScale);
+            frag.sprite.material.color.copy(
+              baseColor.clone().lerp(white, 0.72 + Math.random() * 0.18)
+            );
+            frag.sprite.material.opacity = 0.9;
+            frag.sprite.visible = true;
+          }
+        }
+
+        function spawnSplitSparks(position) {
+          // Strong split cue:
+          // central flash + denser/faster sparks + tiny fading debris.
+          const sparkCount =
+            particles.length > 180 ? 9 :
+            particles.length > 90 ? 12 :
+            particles.length > 30 ? 16 :
+            20;
+
+          const baseColor = populationColor(new THREE.Color());
+          const white = new THREE.Color(0xffffff);
+
+          for (let i = 0; i < sparkCount; i++) {
+            const dir = randomUnitVector();
+            const speed = 1.8 + Math.random() * 2.6;
+
+            sparks.push({
+              pos: position.clone().addScaledVector(dir, 0.012),
+              vel: dir.multiplyScalar(speed),
+              life: 0,
+              maxLife: 0.24 + Math.random() * 0.20,
+              color: baseColor.clone().lerp(
+                white,
+                0.66 + Math.random() * 0.24
+              )
+            });
+          }
+
+          const effect = getAvailableEffect(splitEffects);
+          effect.active = true;
+          effect.life = 0;
+          effect.maxLife = 0.17 + Math.random() * 0.05;
+          effect.flash.position.copy(position);
+          effect.flash.scale.setScalar(0.14);
+          effect.flash.material.color.copy(
+            baseColor.clone().lerp(white, 0.82)
+          );
+          effect.flash.material.opacity = 0;
+          effect.flash.visible = true;
+
+          spawnSplitDebris(position, baseColor);
+
+          if (!celebration && sparks.length > MAX_SPARKS) {
+            sparks.splice(0, sparks.length - MAX_SPARKS);
+          }
+        }
+
+        function spawnMergeHighlight(position) {
+          // A visible ripple expands from the new merged particle and fades out.
+          const effect = getAvailableEffect(mergeEffects);
+          const color = populationColor(new THREE.Color())
+            .lerp(new THREE.Color(0xe8fbff), 0.72);
+
+          effect.active = true;
+          effect.life = 0;
+          effect.maxLife = 0.36 + Math.random() * 0.10;
+          effect.wave.position.copy(position);
+          effect.wave.scale.setScalar(0.13);
+          effect.wave.material.color.copy(color);
+          effect.wave.material.opacity = 0;
+          effect.wave.visible = true;
+        }
+
+        function updateLocalCollisionEffects(dt) {
+          for (const effect of splitEffects) {
+            if (!effect.active) continue;
+
+            effect.life += dt;
+            const t = THREE.MathUtils.clamp(
+              effect.life / effect.maxLife,
+              0,
+              1
+            );
+
+            if (t >= 1) {
+              effect.active = false;
+              effect.flash.visible = false;
+              effect.flash.material.opacity = 0;
+              continue;
+            }
+
+            const attack = Math.min(1, t / 0.12);
+            const envelope =
+              Math.sin(attack * Math.PI * 0.5) *
+              Math.pow(1 - t, 1.8);
+
+            effect.flash.material.opacity = envelope * 0.98;
+            effect.flash.scale.setScalar(
+              THREE.MathUtils.lerp(0.12, 0.40, 1 - Math.pow(1 - t, 2))
+            );
+          }
+
+          for (const frag of splitFragments) {
+            if (!frag.active) continue;
+
+            frag.life += dt;
+            const t = THREE.MathUtils.clamp(
+              frag.life / frag.maxLife,
+              0,
+              1
+            );
+
+            if (t >= 1) {
+              frag.active = false;
+              frag.sprite.visible = false;
+              frag.sprite.material.opacity = 0;
+              continue;
+            }
+
+            frag.pos.addScaledVector(frag.vel, dt);
+            frag.vel.multiplyScalar(Math.pow(frag.drag, dt * 60));
+
+            frag.sprite.position.copy(frag.pos);
+
+            const envelope = Math.pow(1 - t, 1.25);
+            frag.sprite.material.opacity = envelope * 0.95;
+
+            frag.sprite.scale.setScalar(
+              frag.startScale * THREE.MathUtils.lerp(1.0, 0.48, t)
+            );
+          }
+
+          for (const effect of mergeEffects) {
+            if (!effect.active) continue;
+
+            effect.life += dt;
+            const t = THREE.MathUtils.clamp(
+              effect.life / effect.maxLife,
+              0,
+              1
+            );
+
+            if (t >= 1) {
+              effect.active = false;
+              effect.wave.visible = false;
+              effect.wave.material.opacity = 0;
+              continue;
+            }
+
+            const eased = 1 - Math.pow(1 - t, 3);
+
+            effect.wave.scale.setScalar(
+              THREE.MathUtils.lerp(0.14, 0.82, eased)
+            );
+
+            const appear = Math.min(1, t / 0.10);
+            effect.wave.material.opacity =
+              appear * Math.pow(1 - t, 1.45) * 0.82;
+          }
+        }
+
+        function clearLocalCollisionEffects() {
+          for (const effect of splitEffects) {
+            effect.active = false;
+            effect.life = 0;
+            effect.flash.visible = false;
+            effect.flash.material.opacity = 0;
+          }
+
+          for (const frag of splitFragments) {
+            frag.active = false;
+            frag.life = 0;
+            frag.startScale = 0.04;
+            frag.vel.set(0, 0, 0);
+            frag.sprite.visible = false;
+            frag.sprite.material.opacity = 0;
+          }
+
+          for (const effect of mergeEffects) {
+            effect.active = false;
+            effect.life = 0;
+            effect.wave.visible = false;
+            effect.wave.material.opacity = 0;
+          }
+        }
 
         const dummy = new THREE.Object3D();
         const tempColor = new THREE.Color();
@@ -1050,7 +1596,11 @@
 
         function populationProgress() {
           if (maxBalls <= MIN_BALLS) return 0;
-          return THREE.MathUtils.clamp((particles.length - MIN_BALLS) / (maxBalls - MIN_BALLS), 0, 1);
+          return THREE.MathUtils.clamp(
+            (particles.length - MIN_BALLS) / (maxBalls - MIN_BALLS),
+            0,
+            1
+          );
         }
 
         function populationColor(target = new THREE.Color()) {
@@ -1063,11 +1613,16 @@
           return target;
         }
 
+
         function randomUnitVector() {
           const z = Math.random() * 2 - 1;
           const theta = Math.random() * Math.PI * 2;
           const r = Math.sqrt(Math.max(0, 1 - z * z));
-          return new THREE.Vector3(r * Math.cos(theta), r * Math.sin(theta), z);
+          return new THREE.Vector3(
+            r * Math.cos(theta),
+            r * Math.sin(theta),
+            z
+          );
         }
 
         function clampInside(position, margin = VISUAL_RADIUS) {
@@ -1110,6 +1665,7 @@
           nextId = 1;
 
           const axis = randomUnitVector();
+          // Creates a brief ~0.2–0.25s anticipation before first impact.
           const offset = 0.42;
 
           const aPos = origin.clone().addScaledVector(axis, -offset);
@@ -1123,7 +1679,6 @@
           particles.push(makeParticle(aPos, towardB, 5));
           particles.push(makeParticle(bPos, towardA, 5));
 
-          updateUI();
         }
 
         function resetAt(worldPoint) {
@@ -1135,6 +1690,8 @@
           rebirthStartRadius = MIN_ARENA_RADIUS;
           sparks = [];
           sparkGeometry.setDrawRange(0, 0);
+          clearLocalCollisionEffects();
+          paused = false;
           started = true;
 
           const origin = worldPoint ? worldPoint.clone() : new THREE.Vector3();
@@ -1145,16 +1702,6 @@
           lastFrame = performance.now();
         }
 
-        function updateUI() {
-          if (!hudStateEl || !hudCountEl) return;
-          let stateText = mode.toUpperCase();
-          if (celebration === "max") stateText = "MAX EXPANSION";
-          else if (celebration === "rebirth") stateText = "SINGULARITY REBIRTH";
-          else if (mode === "final") stateText = "FINAL COMPRESSION";
-
-          hudStateEl.textContent = stateText;
-          hudCountEl.textContent = `PARTICLES: ${particles.length} / ${maxBalls}`;
-        }
 
         function bounceInsideSphere(particle) {
           const limit = currentArenaRadius - VISUAL_RADIUS;
@@ -1176,8 +1723,12 @@
           if (!pointer.active) return;
 
           raycaster.setFromCamera(pointer.ndc, camera);
+
           camera.getWorldDirection(cameraDirection);
-          gravityPlane.setFromNormalAndCoplanarPoint(cameraDirection, new THREE.Vector3(0, 0, 0));
+          gravityPlane.setFromNormalAndCoplanarPoint(
+            cameraDirection,
+            new THREE.Vector3(0, 0, 0)
+          );
 
           const hit = raycaster.ray.intersectPlane(gravityPlane, pointer.world);
 
@@ -1190,6 +1741,10 @@
         }
 
         function applyGravity(particle, dt) {
+          // Main interaction model:
+          //   drag = orbit
+          //   stationary hold = distort
+          // Mere pointer hover no longer affects the system.
           const heldLongEnough =
             gesture.down &&
             !gesture.moved &&
@@ -1212,12 +1767,18 @@
           tempV1.multiplyScalar(1 / distance);
 
           const normalized = Math.max(0.16, distance / currentArenaRadius);
-          const holdBoost = pointer.pressed && !orbiting && !gesture.moved ? 2.7 : 1.0;
-          const acceleration = gravityStrength * holdBoost * 0.88 / normalized;
+          const holdBoost =
+            pointer.pressed && !orbiting && !gesture.moved ? 2.7 : 1.0;
+          const acceleration =
+            gravityStrength *
+            holdBoost *
+            0.88 /
+            normalized;
 
           particle.vel.addScaledVector(tempV1, acceleration * dt);
 
           const maxSpeed = BASE_SPEED * 2.25;
+
           const speed = particle.vel.length();
 
           if (speed > maxSpeed) {
@@ -1231,6 +1792,8 @@
 
           tempV1.copy(particle.pos).multiplyScalar(-1 / len);
 
+          // The merge phase gently converges toward the center so 3D
+          // collisions continue even at low populations.
           const strength =
             mode === "merge"
               ? 0.19
@@ -1309,7 +1872,6 @@
           }
 
           spawnCelebrationSparks(type);
-          updateUI();
         }
 
         function spawnCelebrationSparks(type) {
@@ -1324,7 +1886,9 @@
               ? 520
               : 220;
 
-          const sparkColor = new THREE.Color(isMax ? 0xffd27a : 0x8fe9ff);
+          const sparkColor = new THREE.Color(
+            isMax ? 0xffd27a : 0x8fe9ff
+          );
 
           for (let i = 0; i < targetCount; i++) {
             const source = particles[i % particles.length];
@@ -1374,17 +1938,19 @@
           sparkGeometry.setDrawRange(0, 0);
           trailLines.visible = true;
           world.scale.setScalar(1);
-          updateUI();
         }
+
 
         function triggerRebirthCollision(a, b) {
           const center = a.pos.clone().add(b.pos).multiplyScalar(0.5);
 
           playCollisionSound("rebirth", center);
 
+          // Remember the exact compressed radius at the moment of impact.
+          // The rebirth explosion starts from here.
           rebirthStartRadius = currentArenaRadius;
-          finalShrinkStarted = 0;
 
+          // The collision itself creates the first four particles of the next cycle.
           const next = splitPair(a, b, 4);
 
           for (const p of next) {
@@ -1404,6 +1970,7 @@
 
           const thresholdSq = COLLISION_DISTANCE * COLLISION_DISTANCE;
 
+          // Final two: their collision is the rebirth event.
           if (mode === "final" && particles.length === 2) {
             const a = particles[0];
             const b = particles[1];
@@ -1461,6 +2028,7 @@
                 const collisionPoint = a.pos.clone().add(b.pos).multiplyScalar(0.5);
 
                 playCollisionSound("split", collisionPoint);
+                spawnSplitSparks(collisionPoint);
 
                 additions.push(...splitPair(a, b, spawnCount));
                 projectedCount = currentAfterRemoval + spawnCount;
@@ -1468,6 +2036,7 @@
                 const collisionPoint = a.pos.clone().add(b.pos).multiplyScalar(0.5);
 
                 playCollisionSound("merge", collisionPoint);
+                spawnMergeHighlight(collisionPoint);
 
                 additions.push(mergePair(a, b));
                 projectedCount -= 1;
@@ -1481,7 +2050,6 @@
 
           particles = particles.filter((p) => !removed.has(p.id));
           particles.push(...additions);
-          updateUI();
 
           if (mode === "split" && particles.length >= maxBalls) {
             particles = particles.slice(0, maxBalls);
@@ -1491,10 +2059,13 @@
 
           if (mode === "merge" && particles.length <= MIN_BALLS) {
             particles = particles.slice(0, MIN_BALLS);
-            mergeShrinkStartRadius = currentArenaRadius;
-            finalShrinkStarted = performance.now();
+
+            // Only the collision behavior changes here. The sphere keeps
+            // following the SAME shrink curve with no radius/timer handoff.
+            // The final two remain free (no artificial inward force), while
+            // the continuously shrinking boundary raises collision probability.
             mode = "final";
-            updateUI();
+
             return;
           }
         }
@@ -1602,14 +2173,17 @@
         function updatePhysics(dt, now) {
           updatePointerWorld();
 
-          if (!started) {
-            updateSparks(dt);
+          // Collision VFX must advance every frame. Previously normal split
+          // sparks were created immediately but updateSparks() only ran during
+          // pause/celebration, making them appear much later near MAX.
+          updateLocalCollisionEffects(dt);
+          updateSparks(dt);
+
+          if (!started || paused) {
             return;
           }
 
           if (celebration) {
-            updateSparks(dt);
-
             const duration =
               celebration === "max"
                 ? MAX_EXPANSION_MS
@@ -1627,6 +2201,8 @@
           for (const p of particles) {
             if (p.cooldown > 0) p.cooldown--;
 
+            // If the sphere contracted around a particle since the last frame,
+            // immediately project it back inside before applying motion.
             clampInside(p.pos, VISUAL_RADIUS);
 
             applyPhaseForce(p, dt);
@@ -1651,56 +2227,74 @@
               ? MAX_EXPANSION_MS
               : REBIRTH_EXPLOSION_MS;
 
-          return THREE.MathUtils.clamp((now - celebrationStarted) / duration, 0, 1);
+          return THREE.MathUtils.clamp(
+            (now - celebrationStarted) / duration,
+            0,
+            1
+          );
         }
 
         function updateArenaRadius(now) {
           if (celebration === "max") {
             const t = celebrationProgress(now);
             const eased = THREE.MathUtils.smoothstep(t, 0, 1);
-            currentArenaRadius = THREE.MathUtils.lerp(ARENA_RADIUS, MAX_ARENA_RADIUS, eased);
+            currentArenaRadius = THREE.MathUtils.lerp(
+              ARENA_RADIUS,
+              MAX_ARENA_RADIUS,
+              eased
+            );
             return;
           }
 
           if (celebration === "rebirth") {
             const t = celebrationProgress(now);
+
+            // Explosive ease-out: most of the diameter returns immediately,
+            // with a smaller settling tail.
             const explosive = 1 - Math.pow(1 - t, 4.2);
-            currentArenaRadius = THREE.MathUtils.lerp(rebirthStartRadius, MAX_ARENA_RADIUS, explosive);
+
+            currentArenaRadius = THREE.MathUtils.lerp(
+              rebirthStartRadius,
+              MAX_ARENA_RADIUS,
+              explosive
+            );
             return;
           }
 
-          if (mode === "merge") {
+          if (mode === "merge" || mode === "final") {
             if (!mergeShrinkStarted) {
               mergeShrinkStarted = now;
               mergeShrinkStartRadius = currentArenaRadius || MAX_ARENA_RADIUS;
             }
 
+            // One continuous timeline from the first merge frame until
+            // the last two particles collide. Entering "final" changes
+            // collision/force behavior only; the radius never pauses,
+            // resets, or changes compression speed.
             const elapsed = Math.max(0, (now - mergeShrinkStarted) / 1000);
-            currentArenaRadius = Math.max(
-              MIN_ARENA_RADIUS,
-              mergeShrinkStartRadius - MERGE_SHRINK_RATE * elapsed
-            );
-            return;
-          }
 
-          if (mode === "final") {
-            if (!finalShrinkStarted) {
-              mergeShrinkStartRadius = currentArenaRadius;
-              finalShrinkStarted = now;
-            }
-
-            const elapsed = Math.max(0, (now - finalShrinkStarted) / 1000);
             currentArenaRadius = Math.max(
               FINAL_MIN_RADIUS,
-              mergeShrinkStartRadius - FINAL_SHRINK_RATE * elapsed
+              mergeShrinkStartRadius - MERGE_SHRINK_RATE * elapsed
             );
+
             return;
           }
 
           if (mode === "split" && postExplosionStarted > 0) {
-            const t = THREE.MathUtils.clamp((now - postExplosionStarted) / POST_EXPLOSION_SETTLE_MS, 0, 1);
+            const t = THREE.MathUtils.clamp(
+              (now - postExplosionStarted) / POST_EXPLOSION_SETTLE_MS,
+              0,
+              1
+            );
+
             const eased = THREE.MathUtils.smoothstep(t, 0, 1);
-            currentArenaRadius = THREE.MathUtils.lerp(MAX_ARENA_RADIUS, ARENA_RADIUS, eased);
+
+            currentArenaRadius = THREE.MathUtils.lerp(
+              MAX_ARENA_RADIUS,
+              ARENA_RADIUS,
+              eased
+            );
 
             if (t >= 1) {
               postExplosionStarted = 0;
@@ -1714,6 +2308,7 @@
         }
 
         function impactEnvelope(t) {
+          // Fast attack, smooth decay.
           const attack = THREE.MathUtils.smoothstep(t, 0.0, 0.16);
           const decay = 1.0 - THREE.MathUtils.smoothstep(t, 0.20, 1.0);
           return THREE.MathUtils.clamp(attack * decay, 0, 1);
@@ -1725,7 +2320,10 @@
           const impact = impactEnvelope(t);
           const arenaScale = currentArenaRadius / ARENA_RADIUS;
 
-          const pulse = celebration ? 1 + 0.10 * impact : 1;
+          const pulse =
+            celebration
+              ? 1 + 0.10 * impact
+              : 1;
 
           boundary.scale.setScalar(arenaScale);
           shell.scale.setScalar(arenaScale);
@@ -1740,6 +2338,7 @@
             dummy.position.copy(p.pos);
             dummy.rotation.set(0, 0, 0);
 
+            // Perspective cue: particles physically closer to the camera feel slightly larger.
             tempV3.copy(camera.position).sub(p.pos);
             const cameraDistance = tempV3.length();
             const depthScale = THREE.MathUtils.clamp(10.0 / cameraDistance, 0.82, 1.22);
@@ -1782,15 +2381,34 @@
 
           updateTrails();
 
-          boundary.material.opacity = celebration ? 0.075 + 0.08 * impact : 0.075;
-          shell.material.opacity = celebration ? 0.022 + 0.065 * impact : 0.022;
+          boundary.material.opacity =
+            celebration
+              ? 0.075 + 0.08 * impact
+              : 0.075;
 
+          shell.material.opacity =
+            celebration
+              ? 0.022 + 0.065 * impact
+              : 0.022;
+
+          // One clean radial shockwave rather than a long sparkle pause.
           if (celebration) {
-            const waveScale = arenaScale * (celebration === "rebirth" ? 0.90 + t * 0.42 : 0.985 + t * 0.17);
+            const waveScale =
+              arenaScale *
+              (
+                celebration === "rebirth"
+                  ? 0.90 + t * 0.42
+                  : 0.985 + t * 0.17
+              );
+
             shockwaveSphere.visible = true;
             shockwaveSphere.scale.setScalar(waveScale);
-            shockwaveSphere.material.opacity = Math.max(0, (1 - t) * 0.24);
-            shockwaveSphere.material.color.set(celebration === "max" ? 0xffbc72 : 0xb6f7ff);
+            shockwaveSphere.material.opacity =
+              Math.max(0, (1 - t) * 0.24);
+
+            shockwaveSphere.material.color.set(
+              celebration === "max" ? 0xffbc72 : 0xb6f7ff
+            );
           } else {
             shockwaveSphere.visible = false;
             shockwaveSphere.material.opacity = 0;
@@ -1805,15 +2423,33 @@
           const t = celebrationProgress(now);
           const impact = impactEnvelope(t);
 
-          bokehPass.uniforms.focus.value = 8.55 + 0.12 * Math.sin(now * 0.00035);
+          // Keep the center of the sphere in focus while breathing very slightly.
+          bokehPass.uniforms.focus.value =
+            8.55 + 0.12 * Math.sin(now * 0.00035);
 
           if (celebration) {
-            const baseBloom = isMobile ? 0.58 : 0.88;
-            bloomPass.strength = baseBloom + (celebration === "max" ? 0.72 : 1.05) * impact;
-            cinematicPass.uniforms.vignetteAmount.value = 0.30 - 0.10 * impact;
-            camera.fov = celebration === "max" ? 48 + 1.15 * impact : 48 + 2.45 * impact;
+            const baseBloom = window.innerWidth < 900 ? 0.70 : 0.88;
+
+            bloomPass.strength =
+              baseBloom +
+              (
+                celebration === "max"
+                  ? 0.72
+                  : 1.05
+              ) * impact;
+
+            cinematicPass.uniforms.vignetteAmount.value =
+              0.30 - 0.10 * impact;
+
+            camera.fov =
+              celebration === "max"
+                ? 48 + 1.15 * impact
+                : 48 + 2.45 * impact;
           } else {
-            bloomPass.strength = (isMobile ? 0.52 : 0.70) + p * 0.10;
+            bloomPass.strength =
+              (window.innerWidth < 900 ? 0.52 : 0.70) +
+              p * 0.10;
+
             cinematicPass.uniforms.vignetteAmount.value = 0.34;
             camera.fov = 48;
           }
@@ -1840,30 +2476,43 @@
           shell.material.color.copy(cold).lerp(warm, p * 0.55);
         }
 
-        function updateCamera(now) {
+        function updateCamera(now, dt) {
+          // While the user is dragging, OrbitControls has full control.
+          // On release, a subtle diagonal drift continues in the remembered
+          // horizontal direction, with a matching vertical component.
           controls.autoRotate = !orbiting && !pointer.pressed;
-          controls.autoRotateSpeed =
-            celebration === "rebirth"
-              ? 0.14
-              : celebration === "max"
-                ? 0.22
-                : 0.38;
 
+          const phaseFactor =
+            celebration === "rebirth"
+              ? 0.55
+              : celebration === "max"
+                ? 0.72
+                : 1;
+
+          const azimuthSpeed = CAMERA_DRIFT_SPEED * phaseFactor;
+          const verticalSpeed = CAMERA_VERTICAL_DRIFT_SPEED * phaseFactor;
+
+          controls.autoRotateSpeed = azimuthSpeed * cameraDriftDirection;
+
+          if (!orbiting && !pointer.pressed) {
+            cameraDriftPhase += dt * verticalSpeed * cameraDriftDirection;
+          }
+
+          const verticalSway = THREE.MathUtils.clamp(
+            Math.sin(cameraDriftPhase) * 0.22,
+            CAMERA_POLAR_SWAY_MIN,
+            CAMERA_POLAR_SWAY_MAX
+          );
+
+          // Diagonal-from-POV drift comes from combining horizontal orbit
+          // with a synchronized vertical sway of the look target.
           controls.target.set(
             0.05 * Math.sin(now * 0.00017),
-            0.04 * Math.cos(now * 0.00013),
+            verticalSway + 0.04 * Math.cos(now * 0.00013),
             0
           );
 
           controls.update();
-
-          if (cameraShake > 0.001) {
-            const factor = prefersReducedMotion ? 0.2 : 1.0;
-            camera.position.x += (Math.random() - 0.5) * cameraShake * factor;
-            camera.position.y += (Math.random() - 0.5) * cameraShake * factor;
-            camera.position.z += (Math.random() - 0.5) * cameraShake * factor;
-            cameraShake *= 0.88;
-          }
         }
 
         function animate(now) {
@@ -1871,7 +2520,7 @@
           lastFrame = now;
           const dt = Math.min(rawDt, 0.035);
 
-          updateCamera(now);
+          updateCamera(now, dt);
           updateArenaRadius(now);
           updateDynamicLighting();
           updateCinematicEffects(now);
@@ -1884,21 +2533,50 @@
 
         function setPointerFromEvent(event) {
           const rect = renderer.domElement.getBoundingClientRect();
-          pointer.ndc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-          pointer.ndc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+          pointer.ndc.x =
+            ((event.clientX - rect.left) / rect.width) * 2 - 1;
+
+          pointer.ndc.y =
+            -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
           pointer.pointerType = event.pointerType || "mouse";
           pointer.active = true;
         }
 
-        async function startExperience() {
-          if (started) return;
 
-          const audioReady = await unlockAudio();
+        function updateSoundButton() {
+          if (!soundButton) return;
 
-          if (audioReady) {
-            playIgnitionSound();
-            await new Promise((resolve) => window.setTimeout(resolve, 110));
+          soundButton.classList.toggle("muted", !soundEnabled);
+          soundButton.setAttribute(
+            "aria-label",
+            soundEnabled ? "Turn sound off" : "Turn sound on"
+          );
+          soundButton.title = soundEnabled ? "Sound off" : "Sound on";
+        }
+
+        async function toggleSound() {
+          soundEnabled = !soundEnabled;
+          updateSoundButton();
+
+          if (!audioContext && soundEnabled) {
+            await unlockAudio();
           }
+
+          if (!audioOutput || !audioContext) return;
+
+          const t = audioContext.currentTime;
+          audioOutput.gain.cancelScheduledValues(t);
+          audioOutput.gain.setValueAtTime(audioOutput.gain.value, t);
+          audioOutput.gain.linearRampToValueAtTime(
+            soundEnabled ? 1 : 0,
+            t + 0.09
+          );
+        }
+
+        function restartExperience() {
+          if (!started) return;
 
           currentArenaRadius = ARENA_RADIUS;
           postExplosionStarted = 0;
@@ -1907,50 +2585,128 @@
           finalShrinkStarted = 0;
           rebirthStartRadius = MIN_ARENA_RADIUS;
 
-          resetAt(new THREE.Vector3());
+          celebration = null;
+          sparks = [];
+          sparkGeometry.setDrawRange(0, 0);
+          clearLocalCollisionEffects();
+
+          trailLines.visible = true;
+          shockwaveSphere.visible = false;
+          shockwaveSphere.material.opacity = 0;
+          shockwaveSphere.scale.setScalar(1);
+
+          world.scale.setScalar(1);
+
+          camera.fov = 48;
+          camera.updateProjectionMatrix();
 
           controls.enabled = true;
           controls.autoRotate = true;
+          controls.autoRotateSpeed =
+            CAMERA_DRIFT_SPEED * cameraDriftDirection;
+          cameraDriftPhase = 0;
 
-          requestAnimationFrame(() => {
-            renderer.domElement.style.opacity = "1";
-            if (onboardingEl) onboardingEl.classList.add("hidden");
-            if (hudEl) hudEl.classList.add("visible");
-            if (controlsEl) controlsEl.classList.add("visible");
-          });
+          resetAt(new THREE.Vector3());
 
-          if (!animationLoopStarted) {
-            animationLoopStarted = true;
-            lastFrame = performance.now();
-            requestAnimationFrame(animate);
+          if (
+            soundEnabled &&
+            audioContext &&
+            audioContext.state === "running"
+          ) {
+            playIgnitionSound();
           }
         }
 
-        btnMute.addEventListener("pointerdown", (e) => e.stopPropagation());
-        btnMute.addEventListener("click", (e) => {
-          e.stopPropagation();
-          isMuted = !isMuted;
+        async function startExperience() {
+          if (started || starting) return;
+          starting = true;
 
-          if (audioMaster && audioContext) {
-            audioMaster.gain.setValueAtTime(isMuted ? 0 : 0.72, audioContext.currentTime);
+          // The ignition tap should remove the invitation immediately,
+          // before waiting for Web Audio to resume.
+          if (startPrompt) {
+            startPrompt.classList.add("hidden");
+            window.setTimeout(() => startPrompt.remove(), 180);
           }
 
-          btnMute.textContent = isMuted ? "🔇" : "🔊";
-          btnMute.setAttribute("aria-label", isMuted ? "Unmute audio" : "Mute audio");
-        });
+          try {
+            // Await browser audio permission/resume inside the trusted user gesture
+            // path before starting any animation or collision timing.
+            const audioReady = await unlockAudio();
 
-        btnRestart.addEventListener("pointerdown", (e) => e.stopPropagation());
-        btnRestart.addEventListener("click", (e) => {
-          e.stopPropagation();
-          if (started) {
-            resetAt(new THREE.Vector3(0, 0, 0));
+            if (audioReady) {
+              playIgnitionSound();
+
+              // Give the ignition sound a tiny head start so it is unmistakable
+              // before the first visual collision happens.
+              await new Promise((resolve) => window.setTimeout(resolve, 110));
+            }
+
+            // Start at normal sphere size with two particles already on a
+            // direct collision course. Their first impact arrives ~0.2–0.25s later.
+            currentArenaRadius = ARENA_RADIUS;
+            postExplosionStarted = 0;
+            mergeShrinkStarted = 0;
+            mergeShrinkStartRadius = MAX_ARENA_RADIUS;
+            finalShrinkStarted = 0;
+            rebirthStartRadius = MIN_ARENA_RADIUS;
+
+            resetAt(new THREE.Vector3());
+
+            controls.enabled = true;
+            controls.autoRotate = true;
+
+            // Fade the whole 3D scene out of black.
+            requestAnimationFrame(() => {
+              renderer.domElement.style.opacity = "1";
+              if (controlsPanel) controlsPanel.classList.add("visible");
+            });
+
+            if (!animationLoopStarted) {
+              animationLoopStarted = true;
+              lastFrame = performance.now();
+              requestAnimationFrame(animate);
+            }
+          } finally {
+            starting = false;
           }
-        });
+        }
+
+        for (const button of [soundButton, restartButton]) {
+          if (!button) continue;
+
+          button.addEventListener("pointerdown", (event) => {
+            event.stopPropagation();
+          });
+
+          button.addEventListener("pointerup", (event) => {
+            event.stopPropagation();
+          });
+        }
+
+        if (soundButton) {
+          soundButton.addEventListener("click", async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await toggleSound();
+          });
+        }
+
+        if (restartButton) {
+          restartButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            restartExperience();
+          });
+        }
+
+        updateSoundButton();
 
         renderer.domElement.addEventListener("pointerdown", (event) => {
           event.preventDefault();
 
           if (!started) {
+            // pointerdown is used deliberately: it is a trusted user gesture,
+            // so this same action can unlock Web Audio.
             void startExperience();
             return;
           }
@@ -1964,6 +2720,8 @@
           gesture.startedAt = performance.now();
           gesture.startX = event.clientX;
           gesture.startY = event.clientY;
+          gesture.lastX = event.clientX;
+          gesture.lastY = event.clientY;
           gesture.moved = false;
 
           try {
@@ -1981,6 +2739,18 @@
               event.clientX - gesture.startX,
               event.clientY - gesture.startY
             );
+
+            const dx = event.clientX - gesture.lastX;
+
+            // Follow the user's most recent horizontal orbit direction.
+            // Tiny jitter is ignored so releasing the mouse does not
+            // accidentally flip the persistent drift.
+            if (Math.abs(dx) >= 0.8) {
+              cameraDriftDirection = dx > 0 ? 1 : -1;
+            }
+
+            gesture.lastX = event.clientX;
+            gesture.lastY = event.clientY;
 
             if (moved >= MOVE_THRESHOLD_PX) {
               gesture.moved = true;
@@ -2042,16 +2812,24 @@
           composer.setSize(window.innerWidth, window.innerHeight);
 
           bloomPass.setSize(window.innerWidth, window.innerHeight);
-          bloomPass.strength = isMobile ? 0.52 : 0.78;
+          bloomPass.strength = window.innerWidth < 900 ? 0.58 : 0.78;
 
-          bokehPass.uniforms.aperture.value = isMobile ? 0.00020 : 0.00042;
-          bokehPass.uniforms.maxblur.value = isMobile ? 0.0028 : 0.0058;
-          cinematicPass.uniforms.grainAmount.value = 0.012;
+          bokehPass.uniforms.aperture.value =
+            window.innerWidth < 900 ? 0.00028 : 0.00042;
+
+          bokehPass.uniforms.maxblur.value =
+            window.innerWidth < 900 ? 0.0038 : 0.0058;
+
+          cinematicPass.uniforms.grainAmount.value =
+            window.innerWidth < 900 ? 0.016 : 0.012;
 
           controls.update();
         });
 
+        // Initial state: completely black and inert.
+        // The first click/tap invokes startExperience().
         started = false;
+        paused = false;
         particles = [];
         particleMesh.count = 0;
         glowMesh.count = 0;
