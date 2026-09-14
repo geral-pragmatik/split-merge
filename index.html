@@ -190,6 +190,20 @@
 
     /* Explicit specificity prevents the generic .controlButton svg rule
        from making both sound icons visible at the same time. */
+    @keyframes spinControlIcon {
+      to { transform: rotate(360deg); }
+    }
+
+    #spinButton.spinning {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.42);
+      background: rgba(20, 28, 40, 0.62);
+    }
+
+    #spinButton.spinning svg {
+      animation: spinControlIcon 820ms linear infinite;
+    }
+
     #soundButton .soundOnIcon {
       display: block;
     }
@@ -238,7 +252,14 @@
       max-width: 560px;
       line-height: 1.5;
     }
-  </style>
+  
+    #stage canvas {
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+</style>
 </head>
 
 <body>
@@ -246,6 +267,21 @@
   <div id="startPrompt" aria-hidden="true"><span>Tap to Enter</span></div>
 
   <div id="controls" aria-label="Experience controls">
+    <button
+      id="spinButton"
+      class="controlButton"
+      type="button"
+      aria-label="Spin the Singularity"
+      title="Spin"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4.8 8.5A8 8 0 0 1 18 5.4"></path>
+        <path d="M18 2.8v3.8h-3.8"></path>
+        <path d="M19.2 15.5A8 8 0 0 1 6 18.6"></path>
+        <path d="M6 21.2v-3.8h3.8"></path>
+      </svg>
+    </button>
+
     <button
       id="soundButton"
       class="controlButton"
@@ -306,6 +342,7 @@
         const stage = document.getElementById("stage");
         const startPrompt = document.getElementById("startPrompt");
         const controlsPanel = document.getElementById("controls");
+        const spinButton = document.getElementById("spinButton");
         const soundButton = document.getElementById("soundButton");
         const restartButton = document.getElementById("restartButton");
 
@@ -351,6 +388,7 @@
         let started = false;
         let starting = false;
         let paused = false;
+        let pausedAt = 0;
         let lastFrame = performance.now();
         let trailTick = 0;
 
@@ -361,6 +399,8 @@
           startY: 0,
           lastX: 0,
           lastY: 0,
+          lastAzimuth: 0,
+          lastPolar: Math.PI * 0.5,
           moved: false
         };
 
@@ -374,15 +414,19 @@
 
         let orbiting = false;
 
-        // Passive camera drift. Horizontal user orbiting changes the
-        // left/right direction; when released, the camera continues that way.
-        // A synchronized vertical phase creates a diagonal ~45° screen-space drift.
-        let cameraDriftDirection = 1;
-        let cameraDriftPhase = 0;
-        const CAMERA_DRIFT_SPEED = 0.44;
-        const CAMERA_VERTICAL_DRIFT_SPEED = 0.44;
-        const CAMERA_POLAR_SWAY_MIN = -0.65;
-        const CAMERA_POLAR_SWAY_MAX = 0.65;
+        // Camera motion is user-triggered only. The Spin control performs
+        // a short synthetic orbit in a freshly randomized direction.
+        const cameraSpin = {
+          active: false,
+          startedAt: 0,
+          duration: 3200,
+          azimuthComponent: 1,
+          polarComponent: 0,
+          speed: 0.86
+        };
+        const CAMERA_SPIN_POLAR_MARGIN = 0.06;
+        const cameraSpinSpherical = new THREE.Spherical();
+        const cameraSpinOffset = new THREE.Vector3();
 
         let audioContext = null;
         let audioMaster = null;
@@ -894,8 +938,8 @@
         controls.minPolarAngle = Math.PI * 0.20;
         controls.maxPolarAngle = Math.PI * 0.80;
         controls.rotateSpeed = 0.7;
-        controls.autoRotate = true;
-        controls.autoRotateSpeed = CAMERA_DRIFT_SPEED * cameraDriftDirection;
+        controls.autoRotate = false;
+        controls.autoRotateSpeed = 0;
         controls.target.set(0, 0, 0);
         controls.update();
 
@@ -2173,15 +2217,12 @@
         function updatePhysics(dt, now) {
           updatePointerWorld();
 
-          // Collision VFX must advance every frame. Previously normal split
-          // sparks were created immediately but updateSparks() only ran during
-          // pause/celebration, making them appear much later near MAX.
-          updateLocalCollisionEffects(dt);
-          updateSparks(dt);
-
           if (!started || paused) {
             return;
           }
+
+          updateLocalCollisionEffects(dt);
+          updateSparks(dt);
 
           if (celebration) {
             const duration =
@@ -2235,6 +2276,8 @@
         }
 
         function updateArenaRadius(now) {
+          if (paused) return;
+
           if (celebration === "max") {
             const t = celebrationProgress(now);
             const eased = THREE.MathUtils.smoothstep(t, 0, 1);
@@ -2476,43 +2519,103 @@
           shell.material.color.copy(cold).lerp(warm, p * 0.55);
         }
 
-        function updateCamera(now, dt) {
-          // While the user is dragging, OrbitControls has full control.
-          // On release, a subtle diagonal drift continues in the remembered
-          // horizontal direction, with a matching vertical component.
-          controls.autoRotate = !orbiting && !pointer.pressed;
+        function stopCameraSpin() {
+          cameraSpin.active = false;
+          if (spinButton) {
+            spinButton.classList.remove("spinning");
+            spinButton.setAttribute("aria-label", "Spin the Singularity");
+            spinButton.title = "Spin";
+          }
+        }
 
-          const phaseFactor =
-            celebration === "rebirth"
-              ? 0.55
-              : celebration === "max"
-                ? 0.72
-                : 1;
+        function startCameraSpin() {
+          if (!started) return;
 
-          const azimuthSpeed = CAMERA_DRIFT_SPEED * phaseFactor;
-          const verticalSpeed = CAMERA_VERTICAL_DRIFT_SPEED * phaseFactor;
+          // Pick a random 2D orbit vector. Keep some azimuth component so
+          // the motion never reads as a mostly vertical tilt.
+          let azimuth = Math.random() * 2 - 1;
+          let polar = Math.random() * 1.4 - 0.7;
 
-          controls.autoRotateSpeed = azimuthSpeed * cameraDriftDirection;
-
-          if (!orbiting && !pointer.pressed) {
-            cameraDriftPhase += dt * verticalSpeed * cameraDriftDirection;
+          if (Math.abs(azimuth) < 0.35) {
+            azimuth = (azimuth < 0 ? -1 : 1) * 0.35;
           }
 
-          const verticalSway = THREE.MathUtils.clamp(
-            Math.sin(cameraDriftPhase) * 0.22,
-            CAMERA_POLAR_SWAY_MIN,
-            CAMERA_POLAR_SWAY_MAX
-          );
+          const magnitude = Math.hypot(azimuth, polar) || 1;
 
-          // Diagonal-from-POV drift comes from combining horizontal orbit
-          // with a synchronized vertical sway of the look target.
-          controls.target.set(
-            0.05 * Math.sin(now * 0.00017),
-            verticalSway + 0.04 * Math.cos(now * 0.00013),
-            0
-          );
+          cameraSpin.azimuthComponent = azimuth / magnitude;
+          cameraSpin.polarComponent = polar / magnitude;
+          cameraSpin.duration = 2800 + Math.random() * 1400;
+          cameraSpin.speed = 0.78 + Math.random() * 0.22;
+          cameraSpin.startedAt = performance.now();
+          cameraSpin.active = true;
 
+          if (spinButton) {
+            spinButton.classList.add("spinning");
+            spinButton.setAttribute("aria-label", "Spin in progress");
+            spinButton.title = "Spinning…";
+          }
+        }
+
+        function updateCamera(now, dt) {
+          // No passive camera motion. OrbitControls owns all manual movement.
+          controls.autoRotate = false;
+          controls.target.set(0, 0, 0);
           controls.update();
+
+          if (!cameraSpin.active) return;
+
+          // Manual interaction always overrides the synthetic spin.
+          if (orbiting || pointer.pressed || gesture.down) {
+            stopCameraSpin();
+            return;
+          }
+
+          const elapsed = now - cameraSpin.startedAt;
+          const progress = THREE.MathUtils.clamp(
+            elapsed / cameraSpin.duration,
+            0,
+            1
+          );
+
+          if (progress >= 1) {
+            stopCameraSpin();
+            return;
+          }
+
+          // Smoothly accelerate and decelerate, like a deliberate finger drag.
+          const envelope = Math.sin(progress * Math.PI);
+          const phaseFactor =
+            celebration === "rebirth"
+              ? 0.65
+              : celebration === "max"
+                ? 0.82
+                : 1;
+
+          const step = cameraSpin.speed * envelope * phaseFactor * dt;
+
+          cameraSpinOffset.copy(camera.position).sub(controls.target);
+          cameraSpinSpherical.setFromVector3(cameraSpinOffset);
+
+          cameraSpinSpherical.theta +=
+            step * cameraSpin.azimuthComponent;
+          cameraSpinSpherical.phi +=
+            step * cameraSpin.polarComponent;
+
+          const minPhi = controls.minPolarAngle + CAMERA_SPIN_POLAR_MARGIN;
+          const maxPhi = controls.maxPolarAngle - CAMERA_SPIN_POLAR_MARGIN;
+
+          if (cameraSpinSpherical.phi <= minPhi) {
+            cameraSpinSpherical.phi = minPhi;
+            cameraSpin.polarComponent = Math.abs(cameraSpin.polarComponent);
+          } else if (cameraSpinSpherical.phi >= maxPhi) {
+            cameraSpinSpherical.phi = maxPhi;
+            cameraSpin.polarComponent = -Math.abs(cameraSpin.polarComponent);
+          }
+
+          cameraSpinSpherical.makeSafe();
+          cameraSpinOffset.setFromSpherical(cameraSpinSpherical);
+          camera.position.copy(controls.target).add(cameraSpinOffset);
+          camera.lookAt(controls.target);
         }
 
         function animate(now) {
@@ -2521,12 +2624,17 @@
           const dt = Math.min(rawDt, 0.035);
 
           updateCamera(now, dt);
-          updateArenaRadius(now);
-          updateDynamicLighting();
-          updateCinematicEffects(now);
-          updatePhysics(dt, now);
-          updateInstances(now);
 
+          if (!paused) {
+            updateArenaRadius(now);
+            updateDynamicLighting();
+            updateCinematicEffects(now);
+            updatePhysics(dt, now);
+          } else {
+            updateDynamicLighting();
+          }
+
+          updateInstances(now);
           composer.render(dt);
           requestAnimationFrame(animate);
         }
@@ -2544,6 +2652,35 @@
           pointer.active = true;
         }
 
+
+        function togglePause() {
+          if (!started) return;
+
+          if (!paused) {
+            paused = true;
+            pausedAt = performance.now();
+
+            // Freeze active motion states immediately.
+            stopCameraSpin();
+            gesture.down = false;
+            gesture.moved = false;
+            pointer.pressed = false;
+            orbiting = false;
+          } else {
+            const resumeAt = performance.now();
+            const pauseDelta = pausedAt ? resumeAt - pausedAt : 0;
+            paused = false;
+            pausedAt = 0;
+
+            // Shift time-based timelines forward so nothing jumps on resume.
+            if (celebrationStarted) celebrationStarted += pauseDelta;
+            if (mergeShrinkStarted) mergeShrinkStarted += pauseDelta;
+            if (postExplosionStarted) postExplosionStarted += pauseDelta;
+            if (cameraSpin.active) cameraSpin.startedAt += pauseDelta;
+
+            lastFrame = resumeAt;
+          }
+        }
 
         function updateSoundButton() {
           if (!soundButton) return;
@@ -2601,10 +2738,9 @@
           camera.updateProjectionMatrix();
 
           controls.enabled = true;
-          controls.autoRotate = true;
-          controls.autoRotateSpeed =
-            CAMERA_DRIFT_SPEED * cameraDriftDirection;
-          cameraDriftPhase = 0;
+          controls.autoRotate = false;
+          controls.autoRotateSpeed = 0;
+          stopCameraSpin();
 
           resetAt(new THREE.Vector3());
 
@@ -2653,7 +2789,7 @@
             resetAt(new THREE.Vector3());
 
             controls.enabled = true;
-            controls.autoRotate = true;
+            controls.autoRotate = false;
 
             // Fade the whole 3D scene out of black.
             requestAnimationFrame(() => {
@@ -2671,7 +2807,7 @@
           }
         }
 
-        for (const button of [soundButton, restartButton]) {
+        for (const button of [spinButton, soundButton, restartButton]) {
           if (!button) continue;
 
           button.addEventListener("pointerdown", (event) => {
@@ -2680,6 +2816,14 @@
 
           button.addEventListener("pointerup", (event) => {
             event.stopPropagation();
+          });
+        }
+
+        if (spinButton) {
+          spinButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            startCameraSpin();
           });
         }
 
@@ -2712,6 +2856,7 @@
           }
 
           setPointerFromEvent(event);
+          stopCameraSpin();
 
           pointer.pressed = true;
           orbiting = false;
@@ -2722,12 +2867,14 @@
           gesture.startY = event.clientY;
           gesture.lastX = event.clientX;
           gesture.lastY = event.clientY;
+          gesture.lastAzimuth = controls.getAzimuthalAngle();
+          gesture.lastPolar = controls.getPolarAngle();
           gesture.moved = false;
 
           try {
             renderer.domElement.setPointerCapture(event.pointerId);
           } catch (_) {}
-        });
+        }, { passive: false });
 
         renderer.domElement.addEventListener("pointermove", (event) => {
           if (!started || !gesture.down) return;
@@ -2740,15 +2887,8 @@
               event.clientY - gesture.startY
             );
 
-            const dx = event.clientX - gesture.lastX;
-
-            // Follow the user's most recent horizontal orbit direction.
-            // Tiny jitter is ignored so releasing the mouse does not
-            // accidentally flip the persistent drift.
-            if (Math.abs(dx) >= 0.8) {
-              cameraDriftDirection = dx > 0 ? 1 : -1;
-            }
-
+            gesture.lastAzimuth = controls.getAzimuthalAngle();
+            gesture.lastPolar = controls.getPolarAngle();
             gesture.lastX = event.clientX;
             gesture.lastY = event.clientY;
 
@@ -2758,12 +2898,16 @@
               pointer.pressed = false;
             }
           }
-        });
+        }, { passive: false });
 
         renderer.domElement.addEventListener("pointerup", (event) => {
           event.preventDefault();
 
           if (!gesture.down) return;
+
+          const isTap =
+            !gesture.moved &&
+            performance.now() - gesture.startedAt < HOLD_THRESHOLD_MS;
 
           gesture.down = false;
           pointer.pressed = false;
@@ -2778,7 +2922,11 @@
           } catch (_) {}
 
           gesture.moved = false;
-        });
+
+          if (isTap) {
+            togglePause();
+          }
+        }, { passive: false });
 
         renderer.domElement.addEventListener("pointercancel", () => {
           gesture.down = false;
