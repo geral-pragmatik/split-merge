@@ -1841,8 +1841,11 @@
         const gravityPlane = new THREE.Plane();
         const cameraDirection = new THREE.Vector3();
 
-        const BASE_PARTICLE_COLOR = new THREE.Color(0x5ee7ff);
-        const HOT_PARTICLE_COLOR = new THREE.Color(0xff4b35);
+        const BASE_PARTICLE_COLOR = new THREE.Color(0x4da6ff);
+        const GREEN_PARTICLE_COLOR = new THREE.Color(0x46d369);
+        const YELLOW_PARTICLE_COLOR = new THREE.Color(0xffdf4d);
+        const ORANGE_PARTICLE_COLOR = new THREE.Color(0xff8a3d);
+        const HOT_PARTICLE_COLOR = new THREE.Color(0xff3b30);
         const WHITE_COLOR = new THREE.Color(0xffffff);
         const MERGE_HIGHLIGHT_COLOR = new THREE.Color(0xe8fbff);
         const LIGHT_COLD_COLOR = new THREE.Color(0x78dfff);
@@ -1852,14 +1855,55 @@
         const CELEBRATION_REBIRTH_COLOR = new THREE.Color(0x8fe9ff);
 
         const SPLIT_HEAT_STEP = 0.17;
-        const MERGE_COOL_STEP = 0.18;
+        const WHITE_START_THRESHOLD = 0.55;
+        const MERGE_WHITE_STEP = 0.18;
         const PARTICLE_COLOR_SMOOTHING = 3.2;
 
-        function particleColorFromHeat(heat, target) {
-          return target.copy(BASE_PARTICLE_COLOR).lerp(
+        function splitSpectrumColor(heat, target) {
+          const t = THREE.MathUtils.clamp(heat, 0, 1);
+
+          if (t < 0.25) {
+            return target.copy(BASE_PARTICLE_COLOR).lerp(
+              GREEN_PARTICLE_COLOR,
+              t / 0.25
+            );
+          }
+
+          if (t < 0.50) {
+            return target.copy(GREEN_PARTICLE_COLOR).lerp(
+              YELLOW_PARTICLE_COLOR,
+              (t - 0.25) / 0.25
+            );
+          }
+
+          if (t < 0.75) {
+            return target.copy(YELLOW_PARTICLE_COLOR).lerp(
+              ORANGE_PARTICLE_COLOR,
+              (t - 0.50) / 0.25
+            );
+          }
+
+          return target.copy(ORANGE_PARTICLE_COLOR).lerp(
             HOT_PARTICLE_COLOR,
-            THREE.MathUtils.clamp(heat, 0, 1)
+            (t - 0.75) / 0.25
           );
+        }
+
+        function particleColorFromState(
+          heat,
+          whiteness,
+          target
+        ) {
+          splitSpectrumColor(heat, target);
+
+          return target.lerp(
+            WHITE_COLOR,
+            THREE.MathUtils.clamp(whiteness, 0, 1)
+          );
+        }
+
+        function particleColorFromHeat(heat, target) {
+          return particleColorFromState(heat, 0, target);
         }
 
         function averageParticleHeat() {
@@ -1870,15 +1914,34 @@
           return THREE.MathUtils.clamp(total / particles.length, 0, 1);
         }
 
+        function averageParticleWhiteness() {
+          if (particles.length === 0) return 0;
+
+          let total = 0;
+          for (const p of particles) {
+            total += p.whiteness ?? 0;
+          }
+
+          return THREE.MathUtils.clamp(
+            total / particles.length,
+            0,
+            1
+          );
+        }
+
         // Retained as the global "temperature" helper for shell/light/VFX,
         // but now driven by the average per-particle color state instead of
-        // raw population count.
+        // raw population count. Merge whitening is included as well.
         function populationProgress() {
           return averageParticleHeat();
         }
 
         function populationColor(target) {
-          return particleColorFromHeat(averageParticleHeat(), target);
+          return particleColorFromState(
+            averageParticleHeat(),
+            averageParticleWhiteness(),
+            target
+          );
         }
 
         function dampScalar(current, target, smoothingPerSecond, dt) {
@@ -1917,7 +1980,11 @@
           positionHistory[1] = particle.pos.y;
           positionHistory[2] = particle.pos.z;
 
-          const color = particleColorFromHeat(particle.heat, tempColor);
+          const color = particleColorFromState(
+            particle.heat,
+            particle.whiteness ?? 0,
+            tempColor
+          );
           colorHistory[0] = color.r;
           colorHistory[1] = color.g;
           colorHistory[2] = color.b;
@@ -1931,13 +1998,25 @@
           velocity,
           cooldown = 12,
           heat = 0,
-          targetHeat = heat
+          targetHeat = heat,
+          whiteness = 0,
+          targetWhiteness = whiteness
         ) {
           const p = position.clone();
           clampInside(p, VISUAL_RADIUS + 0.02);
 
           const clampedHeat = THREE.MathUtils.clamp(heat, 0, 1);
           const clampedTargetHeat = THREE.MathUtils.clamp(targetHeat, 0, 1);
+          const clampedWhiteness = THREE.MathUtils.clamp(
+            whiteness,
+            0,
+            1
+          );
+          const clampedTargetWhiteness = THREE.MathUtils.clamp(
+            targetWhiteness,
+            0,
+            1
+          );
 
           const particle = {
             id: nextId++,
@@ -1946,6 +2025,8 @@
             cooldown,
             heat: clampedHeat,
             targetHeat: clampedTargetHeat,
+            whiteness: clampedWhiteness,
+            targetWhiteness: clampedTargetWhiteness,
             trailPositionHistory: new Float32Array(MAX_TRAIL_LENGTH * 3),
             trailColorHistory: new Float32Array(MAX_TRAIL_LENGTH * 3),
             trailHead: 0,
@@ -1979,8 +2060,14 @@
           const towardB = bPos.clone().sub(aPos).normalize().multiplyScalar(BASE_SPEED);
           const towardA = aPos.clone().sub(bPos).normalize().multiplyScalar(BASE_SPEED);
 
-          particles.push(makeParticle(aPos, towardB, 5));
-          particles.push(makeParticle(bPos, towardA, 5));
+          // Each cycle begins in white. The first split peels that
+          // whiteness away to reveal blue before the spectrum advances.
+          particles.push(
+            makeParticle(aPos, towardB, 5, 0, 0, 1, 1)
+          );
+          particles.push(
+            makeParticle(bPos, towardA, 5, 0, 0, 1, 1)
+          );
 
         }
 
@@ -2144,8 +2231,17 @@
             0,
             1
           );
+          const currentWhiteness = THREE.MathUtils.clamp(
+            ((a.whiteness ?? 0) + (b.whiteness ?? 0)) * 0.5,
+            0,
+            1
+          );
+          const isWhiteStart =
+            currentWhiteness >= WHITE_START_THRESHOLD;
+
           const hotterTarget = THREE.MathUtils.clamp(
-            inheritedHeat + SPLIT_HEAT_STEP,
+            inheritedHeat +
+              (isWhiteStart ? 0 : SPLIT_HEAT_STEP),
             0,
             1
           );
@@ -2166,7 +2262,9 @@
               dir.multiplyScalar(speed),
               13,
               currentHeat,
-              hotterTarget
+              hotterTarget,
+              currentWhiteness,
+              0
             ));
           }
 
@@ -2188,8 +2286,20 @@
             0,
             1
           );
-          const coolerTarget = THREE.MathUtils.clamp(
-            inheritedHeat - MERGE_COOL_STEP,
+          const inheritedWhiteness = THREE.MathUtils.clamp(
+            ((a.targetWhiteness ?? a.whiteness ?? 0) +
+              (b.targetWhiteness ?? b.whiteness ?? 0)) * 0.5,
+            0,
+            1
+          );
+          const currentWhiteness = THREE.MathUtils.clamp(
+            ((a.whiteness ?? inheritedWhiteness) +
+              (b.whiteness ?? inheritedWhiteness)) * 0.5,
+            0,
+            1
+          );
+          const whiterTarget = THREE.MathUtils.clamp(
+            inheritedWhiteness + MERGE_WHITE_STEP,
             0,
             1
           );
@@ -2200,7 +2310,15 @@
             vel.normalize().multiplyScalar(BASE_SPEED);
           }
 
-          return makeParticle(pos, vel, 12, currentHeat, coolerTarget);
+          return makeParticle(
+            pos,
+            vel,
+            12,
+            currentHeat,
+            1,
+            currentWhiteness,
+            whiterTarget
+          );
         }
 
         function startCelebration(type) {
@@ -2302,6 +2420,14 @@
           for (const p of next) {
             p.pos.lerp(center, 0.42);
             p.cooldown = 10;
+
+            // A completed collapse closes the color cycle.
+            // Rebirth always starts cleanly from white.
+            p.heat = 0;
+            p.targetHeat = 0;
+            p.whiteness = 1;
+            p.targetWhiteness = 1;
+            seedParticleTrail(p);
           }
 
           particles = next;
@@ -2427,7 +2553,11 @@
           particle.trailPositionHistory[base + 1] = particle.pos.y;
           particle.trailPositionHistory[base + 2] = particle.pos.z;
 
-          const color = particleColorFromHeat(particle.heat, tempColor);
+          const color = particleColorFromState(
+            particle.heat,
+            particle.whiteness ?? 0,
+            tempColor
+          );
           particle.trailColorHistory[base] = color.r;
           particle.trailColorHistory[base + 1] = color.g;
           particle.trailColorHistory[base + 2] = color.b;
@@ -2575,6 +2705,12 @@
               PARTICLE_COLOR_SMOOTHING,
               dt
             );
+            p.whiteness = dampScalar(
+              p.whiteness ?? 0,
+              p.targetWhiteness ?? p.whiteness ?? 0,
+              PARTICLE_COLOR_SMOOTHING,
+              dt
+            );
 
             // If the sphere contracted around a particle since the last frame,
             // immediately project it back inside before applying motion.
@@ -2718,7 +2854,11 @@
             tempV3.copy(camera.position).sub(p.pos);
             const cameraDistance = tempV3.length();
             const depthScale = THREE.MathUtils.clamp(10.0 / cameraDistance, 0.82, 1.22);
-            const particleColor = particleColorFromHeat(p.heat, tempColor);
+            const particleColor = particleColorFromState(
+              p.heat,
+              p.whiteness ?? 0,
+              tempColor
+            );
 
             dummy.scale.setScalar(pulse * depthScale);
             dummy.updateMatrix();
