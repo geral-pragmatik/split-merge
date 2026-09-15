@@ -380,8 +380,48 @@
 
         let maxBalls = 256;
         let gravityStrength = 0.36;
-        const trailLength = COMPACT_DEVICE ? 15 : 18;
-        const TRAIL_FADE_DENOMINATOR = Math.max(1, trailLength);
+
+        const MAX_TRAIL_LENGTH = 18;
+        let activeTrailLength = COMPACT_DEVICE ? 15 : 18;
+        let adaptiveVfxScale = COMPACT_DEVICE ? 0.82 : 1.0;
+
+        const QUALITY_LEVELS = [
+          { name: "high", dprScale: 1.00, trailLength: 18, vfxScale: 1.00 },
+          { name: "medium", dprScale: 0.82, trailLength: 15, vfxScale: 0.82 },
+          { name: "low", dprScale: 0.68, trailLength: 12, vfxScale: 0.65 }
+        ];
+
+        const requestedQuality = new URLSearchParams(window.location.search)
+          .get("quality")
+          ?.toLowerCase();
+
+        const lockedQualityIndex = QUALITY_LEVELS.findIndex(
+          (level) => level.name === requestedQuality
+        );
+
+        let activeQualityIndex =
+          lockedQualityIndex >= 0
+            ? lockedQualityIndex
+            : COMPACT_DEVICE
+              ? 1
+              : 0;
+
+        const qualityMonitor = {
+          sampleSeconds: 0,
+          sampleFrames: 0,
+          displayedFps: 60,
+          slowWindows: 0,
+          fastWindows: 0,
+          lastChangeAt: performance.now(),
+          warmupUntil: performance.now() + 3500
+        };
+
+        const QUALITY_SAMPLE_SECONDS = 1.0;
+        const QUALITY_CHANGE_COOLDOWN_MS = 6000;
+        const QUALITY_DEGRADE_FPS = 48;
+        const QUALITY_UPGRADE_FPS = 57;
+        const QUALITY_SLOW_WINDOWS = 2;
+        const QUALITY_FAST_WINDOWS = 5;
 
         const MAX_ARENA_RADIUS = ARENA_RADIUS * 1.075;
         const MIN_ARENA_RADIUS = ARENA_RADIUS * 0.25;
@@ -932,14 +972,14 @@
           powerPreference: "high-performance"
         });
 
+        const basePixelRatioCap = () =>
+          window.innerWidth < 900 ? 1.35 : 1.65;
+
         const renderPixelRatio = () =>
           Math.min(
             window.devicePixelRatio || 1,
-            COMPACT_DEVICE
-              ? 1.20
-              : window.innerWidth < 900
-                ? 1.35
-                : 1.65
+            basePixelRatioCap() *
+              QUALITY_LEVELS[activeQualityIndex].dprScale
           );
 
         renderer.setPixelRatio(renderPixelRatio());
@@ -1093,6 +1133,145 @@
         const outputPass = new OutputPass();
         composer.addPass(outputPass);
 
+        function applyQualityLevel(index, reason = "adaptive") {
+          const clampedIndex = THREE.MathUtils.clamp(
+            index,
+            0,
+            QUALITY_LEVELS.length - 1
+          );
+
+          activeQualityIndex = clampedIndex;
+
+          const level = QUALITY_LEVELS[activeQualityIndex];
+          activeTrailLength = level.trailLength;
+          adaptiveVfxScale = level.vfxScale;
+
+          const pixelRatio = renderPixelRatio();
+
+          renderer.setPixelRatio(pixelRatio);
+          renderer.setSize(
+            window.innerWidth,
+            window.innerHeight,
+            false
+          );
+
+          composer.setPixelRatio(pixelRatio);
+          composer.setSize(
+            window.innerWidth,
+            window.innerHeight
+          );
+
+          bloomPass.setSize(
+            window.innerWidth,
+            window.innerHeight
+          );
+
+          qualityMonitor.lastChangeAt = performance.now();
+          qualityMonitor.slowWindows = 0;
+          qualityMonitor.fastWindows = 0;
+
+          console.info(
+            `[Singularity] quality=${level.name} ` +
+            `fps≈${qualityMonitor.displayedFps.toFixed(0)} ` +
+            `(${reason})`
+          );
+        }
+
+        function updateAdaptiveQuality(rawDt, now) {
+          if (
+            lockedQualityIndex >= 0 ||
+            !started ||
+            paused ||
+            document.visibilityState !== "visible" ||
+            rawDt <= 0 ||
+            rawDt > 0.10
+          ) {
+            return;
+          }
+
+          qualityMonitor.sampleSeconds += rawDt;
+          qualityMonitor.sampleFrames++;
+
+          if (
+            qualityMonitor.sampleSeconds < QUALITY_SAMPLE_SECONDS
+          ) {
+            return;
+          }
+
+          const fps =
+            qualityMonitor.sampleFrames /
+            qualityMonitor.sampleSeconds;
+
+          qualityMonitor.displayedFps = fps;
+          qualityMonitor.sampleSeconds = 0;
+          qualityMonitor.sampleFrames = 0;
+
+          if (now < qualityMonitor.warmupUntil) return;
+
+          if (fps < QUALITY_DEGRADE_FPS) {
+            qualityMonitor.slowWindows++;
+            qualityMonitor.fastWindows = 0;
+          } else if (fps > QUALITY_UPGRADE_FPS) {
+            qualityMonitor.fastWindows++;
+            qualityMonitor.slowWindows = 0;
+          } else {
+            qualityMonitor.slowWindows = 0;
+            qualityMonitor.fastWindows = 0;
+          }
+
+          const cooldownFinished =
+            now - qualityMonitor.lastChangeAt >=
+            QUALITY_CHANGE_COOLDOWN_MS;
+
+          if (
+            cooldownFinished &&
+            qualityMonitor.slowWindows >=
+              QUALITY_SLOW_WINDOWS &&
+            activeQualityIndex <
+              QUALITY_LEVELS.length - 1
+          ) {
+            applyQualityLevel(
+              activeQualityIndex + 1,
+              `fps ${fps.toFixed(0)}`
+            );
+            return;
+          }
+
+          if (
+            cooldownFinished &&
+            qualityMonitor.fastWindows >=
+              QUALITY_FAST_WINDOWS &&
+            activeQualityIndex > 0
+          ) {
+            applyQualityLevel(
+              activeQualityIndex - 1,
+              `fps ${fps.toFixed(0)}`
+            );
+          }
+        }
+
+        // Useful for testing from DevTools without adding visible UI.
+        window.__singularityQuality = {
+          get mode() {
+            return lockedQualityIndex >= 0
+              ? "locked"
+              : "auto";
+          },
+          get level() {
+            return QUALITY_LEVELS[activeQualityIndex].name;
+          },
+          get fps() {
+            return qualityMonitor.displayedFps;
+          }
+        };
+
+        applyQualityLevel(
+          activeQualityIndex,
+          lockedQualityIndex >= 0
+            ? "query override"
+            : "initial"
+        );
+
         // Lighting gives the particles actual volume instead of flat color.
         const ambientLight = new THREE.HemisphereLight(0x8fdcff, 0x140a1f, 1.55);
         scene.add(ambientLight);
@@ -1244,7 +1423,7 @@
         const trailLines = new THREE.LineSegments(trailGeometry, trailMaterial);
         world.add(trailLines);
 
-        const MAX_SPARKS = COMPACT_DEVICE ? 720 : 1000;
+        const MAX_SPARKS = 1000;
         const sparkPositions = new Float32Array(MAX_SPARKS * 3);
         const sparkColors = new Float32Array(MAX_SPARKS * 3);
         const sparkGeometry = new THREE.BufferGeometry();
@@ -1443,9 +1622,10 @@
             particles.length > 90 ? 10 :
             particles.length > 30 ? 13 :
             16;
-          const fragmentCount = COMPACT_DEVICE
-            ? Math.max(5, Math.round(fragmentCountBase * 0.78))
-            : fragmentCountBase;
+          const fragmentCount = Math.max(
+            5,
+            Math.round(fragmentCountBase * adaptiveVfxScale)
+          );
 
           for (let i = 0; i < fragmentCount; i++) {
             const frag = getAvailableEffect(splitFragments);
@@ -1479,9 +1659,10 @@
             particles.length > 90 ? 12 :
             particles.length > 30 ? 16 :
             20;
-          const sparkCount = COMPACT_DEVICE
-            ? Math.max(7, Math.round(sparkCountBase * 0.80))
-            : sparkCountBase;
+          const sparkCount = Math.max(
+            7,
+            Math.round(sparkCountBase * adaptiveVfxScale)
+          );
 
           const baseColor = populationColor(tempColor2);
 
@@ -1765,8 +1946,8 @@
             cooldown,
             heat: clampedHeat,
             targetHeat: clampedTargetHeat,
-            trailPositionHistory: new Float32Array(trailLength * 3),
-            trailColorHistory: new Float32Array(trailLength * 3),
+            trailPositionHistory: new Float32Array(MAX_TRAIL_LENGTH * 3),
+            trailColorHistory: new Float32Array(MAX_TRAIL_LENGTH * 3),
             trailHead: 0,
             trailCount: 0
           };
@@ -2045,9 +2226,10 @@
               ? 520
               : 220;
 
-          const targetCount = COMPACT_DEVICE
-            ? Math.min(MAX_SPARKS, Math.round(targetCountBase * 0.78))
-            : targetCountBase;
+          const targetCount = Math.min(
+            MAX_SPARKS,
+            Math.round(targetCountBase * adaptiveVfxScale)
+          );
 
           const sparkColor = isMax
             ? CELEBRATION_MAX_COLOR
@@ -2237,7 +2419,8 @@
         }
 
         function recordTrail(particle) {
-          const nextHead = (particle.trailHead + 1) % trailLength;
+          const nextHead =
+            (particle.trailHead + 1) % MAX_TRAIL_LENGTH;
           const base = nextHead * 3;
 
           particle.trailPositionHistory[base] = particle.pos.x;
@@ -2252,7 +2435,7 @@
           particle.trailHead = nextHead;
           particle.trailCount = Math.min(
             particle.trailCount + 1,
-            trailLength
+            MAX_TRAIL_LENGTH
           );
         }
 
@@ -2264,21 +2447,26 @@
             const colorHistory = particle.trailColorHistory;
             const segmentCount = Math.min(
               particle.trailCount - 1,
-              trailLength - 1
+              activeTrailLength - 1
             );
 
             for (let i = 0; i < segmentCount; i++) {
               if (vertexIndex + 2 >= MAX_TRAIL_VERTICES) break;
 
               const index1 =
-                (particle.trailHead - i + trailLength) % trailLength;
+                (particle.trailHead - i + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH;
               const index2 =
-                (particle.trailHead - i - 1 + trailLength) % trailLength;
+                (particle.trailHead - i - 1 + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH;
               const source1 = index1 * 3;
               const source2 = index2 * 3;
 
-              const fade1 = 1 - i / TRAIL_FADE_DENOMINATOR;
-              const fade2 = 1 - (i + 1) / TRAIL_FADE_DENOMINATOR;
+              const trailFadeDenominator = Math.max(
+                1,
+                activeTrailLength
+              );
+              const fade1 = 1 - i / trailFadeDenominator;
+              const fade2 =
+                1 - (i + 1) / trailFadeDenominator;
 
               const base1 = vertexIndex * 3;
               trailPositions[base1] = positionHistory[source1];
@@ -2801,6 +2989,9 @@
         function animate(now) {
           const rawDt = (now - lastFrame) / 1000;
           lastFrame = now;
+
+          updateAdaptiveQuality(rawDt, now);
+
           const dt = Math.min(rawDt, 0.035);
 
           updateCamera(dt);
