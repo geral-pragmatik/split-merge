@@ -602,7 +602,7 @@
           }, Math.ceil(durationSeconds * 1000) + 80);
         }
 
-        function playSplitSound(worldPosition) {
+        function playSplitSound(worldPosition, colorProgress = 0) {
           if (
             !audioContext ||
             audioContext.state !== "running" ||
@@ -619,15 +619,38 @@
           soundState.splitLastAt = nowMs;
 
           const t = audioContext.currentTime;
-          const progress = populationProgress();
+          const colorStage = THREE.MathUtils.clamp(
+            colorProgress,
+            0,
+            1
+          );
 
-          // Higher and glassier while the system is sparse; warmer/lower near MAX.
+          // The split sound follows the same spectrum as the particles:
+          // blue -> green -> yellow -> orange -> red.
+          //
+          // As color warms, the collision becomes progressively higher,
+          // brighter and slightly more energetic. A little randomness
+          // prevents repeated collisions from sounding mechanically identical.
+          // Progress upward through the spectrum, but soften the
+          // orange/red end so it becomes fuller rather than brittle.
+          const easedColorStage =
+            1 - Math.pow(1 - colorStage, 1.35);
+
           const baseFreq =
-            THREE.MathUtils.lerp(1080, 610, progress) *
-            (0.93 + Math.random() * 0.14);
+            THREE.MathUtils.lerp(470, 900, easedColorStage) *
+            (0.975 + Math.random() * 0.05);
+
+          const partialRatio =
+            THREE.MathUtils.lerp(1.55, 1.92, easedColorStage);
+
+          const pitchDrop =
+            THREE.MathUtils.lerp(0.86, 0.76, easedColorStage);
+
+          const duration =
+            THREE.MathUtils.lerp(0.14, 0.23, easedColorStage);
 
           const volume =
-            THREE.MathUtils.lerp(0.095, 0.040, progress);
+            THREE.MathUtils.lerp(0.052, 0.084, easedColorStage);
 
           const output = createStereoOutput(worldPosition, volume);
           if (!output) return;
@@ -636,21 +659,59 @@
           const partial = audioContext.createOscillator();
           const partialGain = audioContext.createGain();
 
+          // Keep the fundamental smooth throughout the full color arc.
           osc.type = "sine";
           osc.frequency.setValueAtTime(baseFreq, t);
-          osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.72, t + 0.105);
+          osc.frequency.exponentialRampToValueAtTime(
+            baseFreq * pitchDrop,
+            t + duration * 0.72
+          );
 
-          partial.type = "triangle";
-          partial.frequency.setValueAtTime(baseFreq * 2.02, t);
-          partial.frequency.exponentialRampToValueAtTime(baseFreq * 1.42, t + 0.075);
+          partial.type = colorStage < 0.72 ? "triangle" : "sine";
+          partial.frequency.setValueAtTime(
+            baseFreq * partialRatio,
+            t
+          );
+          partial.frequency.exponentialRampToValueAtTime(
+            baseFreq * partialRatio * 0.72,
+            t + duration * 0.52
+          );
 
           output.gain.gain.setValueAtTime(0.0001, t);
-          output.gain.gain.exponentialRampToValueAtTime(volume, t + 0.006);
-          output.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+          output.gain.gain.exponentialRampToValueAtTime(
+            volume,
+            t + 0.006
+          );
+          output.gain.gain.exponentialRampToValueAtTime(
+            0.0001,
+            t + duration
+          );
+
+          // Harmonics grow through the middle of the spectrum, then
+          // soften slightly toward red to avoid a crispy/metallic finish.
+          const lateSoftening =
+            colorStage > 0.72
+              ? THREE.MathUtils.lerp(
+                  1,
+                  0.66,
+                  (colorStage - 0.72) / 0.28
+                )
+              : 1;
+
+          const harmonicGain =
+            volume *
+            THREE.MathUtils.lerp(0.16, 0.34, easedColorStage) *
+            lateSoftening;
 
           partialGain.gain.setValueAtTime(0.0001, t);
-          partialGain.gain.exponentialRampToValueAtTime(volume * 0.28, t + 0.004);
-          partialGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.075);
+          partialGain.gain.exponentialRampToValueAtTime(
+            harmonicGain,
+            t + 0.004
+          );
+          partialGain.gain.exponentialRampToValueAtTime(
+            0.0001,
+            t + duration * 0.72
+          );
 
           osc.connect(output.gain);
           partial.connect(partialGain);
@@ -658,10 +719,10 @@
 
           osc.start(t);
           partial.start(t);
-          osc.stop(t + 0.18);
-          partial.stop(t + 0.09);
+          osc.stop(t + duration + 0.02);
+          partial.stop(t + duration * 0.65);
 
-          registerVoice(0.18);
+          registerVoice(duration + 0.02);
         }
 
         function playMergeSound(worldPosition) {
@@ -944,9 +1005,13 @@
           registerVoice(1.12);
         }
 
-        function playCollisionSound(type, worldPosition) {
+        function playCollisionSound(
+          type,
+          worldPosition,
+          colorProgress = 0
+        ) {
           if (type === "split") {
-            playSplitSound(worldPosition);
+            playSplitSound(worldPosition, colorProgress);
           } else if (type === "merge") {
             playMergeSound(worldPosition);
           } else if (type === "rebirth") {
@@ -2215,6 +2280,30 @@
           return dirs;
         }
 
+        function splitTargetHeatForPair(a, b) {
+          const inheritedHeat = THREE.MathUtils.clamp(
+            ((a.targetHeat ?? a.heat ?? 0) +
+              (b.targetHeat ?? b.heat ?? 0)) * 0.5,
+            0,
+            1
+          );
+
+          const currentWhiteness = THREE.MathUtils.clamp(
+            ((a.whiteness ?? 0) + (b.whiteness ?? 0)) * 0.5,
+            0,
+            1
+          );
+
+          return THREE.MathUtils.clamp(
+            inheritedHeat +
+              (currentWhiteness >= WHITE_START_THRESHOLD
+                ? 0
+                : SPLIT_HEAT_STEP),
+            0,
+            1
+          );
+        }
+
         function splitPair(a, b, spawnCount) {
           const center = a.pos.clone().add(b.pos).multiplyScalar(0.5);
           clampInside(center, 0.3);
@@ -2236,15 +2325,7 @@
             0,
             1
           );
-          const isWhiteStart =
-            currentWhiteness >= WHITE_START_THRESHOLD;
-
-          const hotterTarget = THREE.MathUtils.clamp(
-            inheritedHeat +
-              (isWhiteStart ? 0 : SPLIT_HEAT_STEP),
-            0,
-            1
-          );
+          const hotterTarget = splitTargetHeatForPair(a, b);
 
           for (let i = 0; i < spawnCount; i++) {
             const dir = dirs[i % dirs.length].clone();
@@ -2499,7 +2580,14 @@
                 const spawnCount = Math.max(2, Math.min(4, room));
                 const collisionPoint = a.pos.clone().add(b.pos).multiplyScalar(0.5);
 
-                playCollisionSound("split", collisionPoint);
+                const splitColorProgress =
+                  splitTargetHeatForPair(a, b);
+
+                playCollisionSound(
+                  "split",
+                  collisionPoint,
+                  splitColorProgress
+                );
                 spawnSplitSparks(collisionPoint);
                 addCollisionSpinImpulse("split", collisionPoint);
 
