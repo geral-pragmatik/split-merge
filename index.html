@@ -190,18 +190,26 @@
 
     /* Explicit specificity prevents the generic .controlButton svg rule
        from making both sound icons visible at the same time. */
-    @keyframes spinControlIcon {
-      to { transform: rotate(360deg); }
+    #spinButton .spinOnIcon {
+      display: block;
     }
 
-    #spinButton.spinning {
-      color: #fff;
-      border-color: rgba(255, 255, 255, 0.42);
-      background: rgba(20, 28, 40, 0.62);
+    #spinButton .spinOffIcon {
+      display: none;
     }
 
-    #spinButton.spinning svg {
-      animation: spinControlIcon 820ms linear infinite;
+    #spinButton.spinOff .spinOnIcon {
+      display: none;
+    }
+
+    #spinButton.spinOff .spinOffIcon {
+      display: block;
+    }
+
+    #spinButton.spinOff {
+      color: rgba(255, 255, 255, 0.58);
+      border-color: rgba(255, 255, 255, 0.12);
+      background: rgba(8, 10, 14, 0.24);
     }
 
     #soundButton .soundOnIcon {
@@ -271,14 +279,22 @@
       id="spinButton"
       class="controlButton"
       type="button"
-      aria-label="Spin the Singularity"
-      title="Spin"
+      aria-label="Turn collision spin off"
+      title="Collision spin on/off"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
+      <svg class="spinOnIcon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M4.8 8.5A8 8 0 0 1 18 5.4"></path>
         <path d="M18 2.8v3.8h-3.8"></path>
         <path d="M19.2 15.5A8 8 0 0 1 6 18.6"></path>
         <path d="M6 21.2v-3.8h3.8"></path>
+      </svg>
+      <svg class="spinOffIcon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4.8 8.5A8 8 0 0 1 18 5.4"></path>
+        <path d="M18 2.8v3.8h-3.8"></path>
+        <path d="M19.2 15.5A8 8 0 0 1 6 18.6"></path>
+        <path d="M6 21.2v-3.8h3.8"></path>
+        <path d="m9.5 9.5 5 5"></path>
+        <path d="m14.5 9.5-5 5"></path>
       </svg>
     </button>
 
@@ -358,9 +374,14 @@
         const HOLD_THRESHOLD_MS = 220;
         const MOVE_THRESHOLD_PX = 8;
 
+        const COMPACT_DEVICE =
+          window.matchMedia?.("(pointer: coarse)")?.matches ||
+          window.innerWidth < 700;
+
         let maxBalls = 256;
         let gravityStrength = 0.36;
-        let trailLength = 18;
+        const trailLength = COMPACT_DEVICE ? 15 : 18;
+        const TRAIL_FADE_DENOMINATOR = Math.max(1, trailLength);
 
         const MAX_ARENA_RADIUS = ARENA_RADIUS * 1.075;
         const MIN_ARENA_RADIUS = ARENA_RADIUS * 0.25;
@@ -414,19 +435,20 @@
 
         let orbiting = false;
 
-        // Camera motion is user-triggered only. The Spin control performs
-        // a short synthetic orbit in a freshly randomized direction.
-        const cameraSpin = {
-          active: false,
-          startedAt: 0,
-          duration: 3200,
-          azimuthComponent: 1,
-          polarComponent: 0,
-          speed: 0.86
-        };
+        // Camera motion is manual orbit plus optional collision-driven spin.
         const CAMERA_SPIN_POLAR_MARGIN = 0.06;
-        const cameraSpinSpherical = new THREE.Spherical();
-        const cameraSpinOffset = new THREE.Vector3();
+        const cameraOrbitSpherical = new THREE.Spherical();
+        const cameraOrbitOffset = new THREE.Vector3();
+
+        // Collision-driven camera spin impulses accumulate and decay smoothly.
+        const cameraCollisionSpin = {
+          azimuthVelocity: 0,
+          polarVelocity: 0
+        };
+        let collisionSpinEnabled = true;
+        const CAMERA_COLLISION_SPIN_DECAY = 2.2;
+        const CAMERA_COLLISION_SPIN_MAX = 2.88;
+        const CAMERA_COLLISION_POLAR_SCALE = 0.55;
 
         let audioContext = null;
         let audioMaster = null;
@@ -913,7 +935,11 @@
         const renderPixelRatio = () =>
           Math.min(
             window.devicePixelRatio || 1,
-            window.innerWidth < 900 ? 1.35 : 1.65
+            COMPACT_DEVICE
+              ? 1.20
+              : window.innerWidth < 900
+                ? 1.35
+                : 1.65
           );
 
         renderer.setPixelRatio(renderPixelRatio());
@@ -955,7 +981,7 @@
         scene.add(world);
 
         // Very faint background points help the eye read camera motion and depth.
-        const starCount = 140;
+        const starCount = COMPACT_DEVICE ? 100 : 140;
         const starPositions = new Float32Array(starCount * 3);
 
         for (let i = 0; i < starCount; i++) {
@@ -1218,7 +1244,7 @@
         const trailLines = new THREE.LineSegments(trailGeometry, trailMaterial);
         world.add(trailLines);
 
-        const MAX_SPARKS = 1000;
+        const MAX_SPARKS = COMPACT_DEVICE ? 720 : 1000;
         const sparkPositions = new Float32Array(MAX_SPARKS * 3);
         const sparkColors = new Float32Array(MAX_SPARKS * 3);
         const sparkGeometry = new THREE.BufferGeometry();
@@ -1412,12 +1438,14 @@
         }
 
         function spawnSplitDebris(position, baseColor) {
-          const white = new THREE.Color(0xffffff);
-          const fragmentCount =
+          const fragmentCountBase =
             particles.length > 180 ? 7 :
             particles.length > 90 ? 10 :
             particles.length > 30 ? 13 :
             16;
+          const fragmentCount = COMPACT_DEVICE
+            ? Math.max(5, Math.round(fragmentCountBase * 0.78))
+            : fragmentCountBase;
 
           for (let i = 0; i < fragmentCount; i++) {
             const frag = getAvailableEffect(splitFragments);
@@ -1436,7 +1464,7 @@
             frag.startScale = 0.038 + Math.random() * 0.038;
             frag.sprite.scale.setScalar(frag.startScale);
             frag.sprite.material.color.copy(
-              baseColor.clone().lerp(white, 0.72 + Math.random() * 0.18)
+              tempColor2.copy(baseColor).lerp(WHITE_COLOR, 0.72 + Math.random() * 0.18)
             );
             frag.sprite.material.opacity = 0.9;
             frag.sprite.visible = true;
@@ -1446,14 +1474,16 @@
         function spawnSplitSparks(position) {
           // Strong split cue:
           // central flash + denser/faster sparks + tiny fading debris.
-          const sparkCount =
+          const sparkCountBase =
             particles.length > 180 ? 9 :
             particles.length > 90 ? 12 :
             particles.length > 30 ? 16 :
             20;
+          const sparkCount = COMPACT_DEVICE
+            ? Math.max(7, Math.round(sparkCountBase * 0.80))
+            : sparkCountBase;
 
-          const baseColor = populationColor(new THREE.Color());
-          const white = new THREE.Color(0xffffff);
+          const baseColor = populationColor(tempColor2);
 
           for (let i = 0; i < sparkCount; i++) {
             const dir = randomUnitVector();
@@ -1465,7 +1495,7 @@
               life: 0,
               maxLife: 0.24 + Math.random() * 0.20,
               color: baseColor.clone().lerp(
-                white,
+                WHITE_COLOR,
                 0.66 + Math.random() * 0.24
               )
             });
@@ -1478,7 +1508,7 @@
           effect.flash.position.copy(position);
           effect.flash.scale.setScalar(0.14);
           effect.flash.material.color.copy(
-            baseColor.clone().lerp(white, 0.82)
+            tempColor.copy(baseColor).lerp(WHITE_COLOR, 0.82)
           );
           effect.flash.material.opacity = 0;
           effect.flash.visible = true;
@@ -1493,8 +1523,8 @@
         function spawnMergeHighlight(position) {
           // A visible ripple expands from the new merged particle and fades out.
           const effect = getAvailableEffect(mergeEffects);
-          const color = populationColor(new THREE.Color())
-            .lerp(new THREE.Color(0xe8fbff), 0.72);
+          const color = populationColor(tempColor2)
+            .lerp(MERGE_HIGHLIGHT_COLOR, 0.72);
 
           effect.active = true;
           effect.life = 0;
@@ -1632,11 +1662,19 @@
 
         const BASE_PARTICLE_COLOR = new THREE.Color(0x5ee7ff);
         const HOT_PARTICLE_COLOR = new THREE.Color(0xff4b35);
+        const WHITE_COLOR = new THREE.Color(0xffffff);
+        const MERGE_HIGHLIGHT_COLOR = new THREE.Color(0xe8fbff);
+        const LIGHT_COLD_COLOR = new THREE.Color(0x78dfff);
+        const LIGHT_WARM_COLOR = new THREE.Color(0xff7040);
+        const WARM_LIGHT_COLOR = new THREE.Color(0xff7a3d);
+        const CELEBRATION_MAX_COLOR = new THREE.Color(0xffd27a);
+        const CELEBRATION_REBIRTH_COLOR = new THREE.Color(0x8fe9ff);
+
         const SPLIT_HEAT_STEP = 0.17;
         const MERGE_COOL_STEP = 0.18;
         const PARTICLE_COLOR_SMOOTHING = 3.2;
 
-        function particleColorFromHeat(heat, target = new THREE.Color()) {
+        function particleColorFromHeat(heat, target) {
           return target.copy(BASE_PARTICLE_COLOR).lerp(
             HOT_PARTICLE_COLOR,
             THREE.MathUtils.clamp(heat, 0, 1)
@@ -1658,7 +1696,7 @@
           return averageParticleHeat();
         }
 
-        function populationColor(target = new THREE.Color()) {
+        function populationColor(target) {
           return particleColorFromHeat(averageParticleHeat(), target);
         }
 
@@ -1690,6 +1728,23 @@
           return position;
         }
 
+        function seedParticleTrail(particle) {
+          const positionHistory = particle.trailPositionHistory;
+          const colorHistory = particle.trailColorHistory;
+
+          positionHistory[0] = particle.pos.x;
+          positionHistory[1] = particle.pos.y;
+          positionHistory[2] = particle.pos.z;
+
+          const color = particleColorFromHeat(particle.heat, tempColor);
+          colorHistory[0] = color.r;
+          colorHistory[1] = color.g;
+          colorHistory[2] = color.b;
+
+          particle.trailHead = 0;
+          particle.trailCount = 1;
+        }
+
         function makeParticle(
           position,
           velocity,
@@ -1702,24 +1757,27 @@
 
           const clampedHeat = THREE.MathUtils.clamp(heat, 0, 1);
           const clampedTargetHeat = THREE.MathUtils.clamp(targetHeat, 0, 1);
-          const c = particleColorFromHeat(clampedHeat, new THREE.Color());
 
-          return {
+          const particle = {
             id: nextId++,
             pos: p,
             vel: velocity.clone(),
             cooldown,
             heat: clampedHeat,
             targetHeat: clampedTargetHeat,
-            history: [p.clone()],
-            historyColors: [c.clone()]
+            trailPositionHistory: new Float32Array(trailLength * 3),
+            trailColorHistory: new Float32Array(trailLength * 3),
+            trailHead: 0,
+            trailCount: 0
           };
+
+          seedParticleTrail(particle);
+          return particle;
         }
 
         function clearTrails() {
           for (const p of particles) {
-            p.history = [p.pos.clone()];
-            p.historyColors = [particleColorFromHeat(p.heat, new THREE.Color())];
+            seedParticleTrail(p);
           }
           trailGeometry.setDrawRange(0, 0);
         }
@@ -1755,6 +1813,7 @@
           sparks = [];
           sparkGeometry.setDrawRange(0, 0);
           clearLocalCollisionEffects();
+          clearCollisionSpinImpulse();
           paused = false;
           started = true;
 
@@ -1980,15 +2039,19 @@
           const isMax = type === "max";
           const isRebirth = type === "rebirth";
 
-          const targetCount = isMax
+          const targetCountBase = isMax
             ? Math.min(MAX_SPARKS, Math.max(320, particles.length * 3))
             : isRebirth
               ? 520
               : 220;
 
-          const sparkColor = new THREE.Color(
-            isMax ? 0xffd27a : 0x8fe9ff
-          );
+          const targetCount = COMPACT_DEVICE
+            ? Math.min(MAX_SPARKS, Math.round(targetCountBase * 0.78))
+            : targetCountBase;
+
+          const sparkColor = isMax
+            ? CELEBRATION_MAX_COLOR
+            : CELEBRATION_REBIRTH_COLOR;
 
           for (let i = 0; i < targetCount; i++) {
             const source = particles[i % particles.length];
@@ -2005,7 +2068,7 @@
               ),
               life: 0,
               maxLife: 0.8 + Math.random() * 1.4,
-              color: sparkColor.clone().lerp(new THREE.Color(0xffffff), Math.random() * 0.45)
+              color: sparkColor.clone().lerp(WHITE_COLOR, Math.random() * 0.45)
             });
           }
         }
@@ -2045,6 +2108,7 @@
           const center = a.pos.clone().add(b.pos).multiplyScalar(0.5);
 
           playCollisionSound("rebirth", center);
+          addCollisionSpinImpulse("rebirth", center);
 
           // Remember the exact compressed radius at the moment of impact.
           // The rebirth explosion starts from here.
@@ -2129,6 +2193,7 @@
 
                 playCollisionSound("split", collisionPoint);
                 spawnSplitSparks(collisionPoint);
+                addCollisionSpinImpulse("split", collisionPoint);
 
                 additions.push(...splitPair(a, b, spawnCount));
                 projectedCount = currentAfterRemoval + spawnCount;
@@ -2137,6 +2202,7 @@
 
                 playCollisionSound("merge", collisionPoint);
                 spawnMergeHighlight(collisionPoint);
+                addCollisionSpinImpulse("merge", collisionPoint);
 
                 additions.push(mergePair(a, b));
                 projectedCount -= 1;
@@ -2171,56 +2237,70 @@
         }
 
         function recordTrail(particle) {
-          particle.history.unshift(particle.pos.clone());
-          particle.historyColors.unshift(
-            particleColorFromHeat(particle.heat, new THREE.Color())
-          );
+          const nextHead = (particle.trailHead + 1) % trailLength;
+          const base = nextHead * 3;
 
-          if (particle.history.length > trailLength) {
-            particle.history.length = trailLength;
-            particle.historyColors.length = trailLength;
-          }
+          particle.trailPositionHistory[base] = particle.pos.x;
+          particle.trailPositionHistory[base + 1] = particle.pos.y;
+          particle.trailPositionHistory[base + 2] = particle.pos.z;
+
+          const color = particleColorFromHeat(particle.heat, tempColor);
+          particle.trailColorHistory[base] = color.r;
+          particle.trailColorHistory[base + 1] = color.g;
+          particle.trailColorHistory[base + 2] = color.b;
+
+          particle.trailHead = nextHead;
+          particle.trailCount = Math.min(
+            particle.trailCount + 1,
+            trailLength
+          );
         }
 
         function updateTrails() {
           let vertexIndex = 0;
 
           for (const particle of particles) {
-            const history = particle.history;
-            const historyColors = particle.historyColors;
-            const segmentCount = Math.min(history.length - 1, trailLength - 1);
+            const positionHistory = particle.trailPositionHistory;
+            const colorHistory = particle.trailColorHistory;
+            const segmentCount = Math.min(
+              particle.trailCount - 1,
+              trailLength - 1
+            );
 
             for (let i = 0; i < segmentCount; i++) {
               if (vertexIndex + 2 >= MAX_TRAIL_VERTICES) break;
 
-              const p1 = history[i];
-              const p2 = history[i + 1];
+              const index1 =
+                (particle.trailHead - i + trailLength) % trailLength;
+              const index2 =
+                (particle.trailHead - i - 1 + trailLength) % trailLength;
+              const source1 = index1 * 3;
+              const source2 = index2 * 3;
 
-              const fade1 = 1 - i / Math.max(1, trailLength);
-              const fade2 = 1 - (i + 1) / Math.max(1, trailLength);
-
-              const c1 = historyColors[i] || populationColor(tempColor);
-              const c2 = historyColors[i + 1] || c1;
+              const fade1 = 1 - i / TRAIL_FADE_DENOMINATOR;
+              const fade2 = 1 - (i + 1) / TRAIL_FADE_DENOMINATOR;
 
               const base1 = vertexIndex * 3;
-              trailPositions[base1] = p1.x;
-              trailPositions[base1 + 1] = p1.y;
-              trailPositions[base1 + 2] = p1.z;
+              trailPositions[base1] = positionHistory[source1];
+              trailPositions[base1 + 1] = positionHistory[source1 + 1];
+              trailPositions[base1 + 2] = positionHistory[source1 + 2];
 
-              trailColors[base1] = c1.r * fade1;
-              trailColors[base1 + 1] = c1.g * fade1;
-              trailColors[base1 + 2] = c1.b * fade1;
+              trailColors[base1] = colorHistory[source1] * fade1;
+              trailColors[base1 + 1] = colorHistory[source1 + 1] * fade1;
+              trailColors[base1 + 2] = colorHistory[source1 + 2] * fade1;
 
               vertexIndex++;
 
               const base2 = vertexIndex * 3;
-              trailPositions[base2] = p2.x;
-              trailPositions[base2 + 1] = p2.y;
-              trailPositions[base2 + 2] = p2.z;
+              trailPositions[base2] = positionHistory[source2];
+              trailPositions[base2 + 1] = positionHistory[source2 + 1];
+              trailPositions[base2 + 2] = positionHistory[source2 + 2];
 
-              trailColors[base2] = c2.r * fade2 * 0.74;
-              trailColors[base2 + 1] = c2.g * fade2 * 0.74;
-              trailColors[base2 + 2] = c2.b * fade2 * 0.74;
+              trailColors[base2] = colorHistory[source2] * fade2 * 0.74;
+              trailColors[base2 + 1] =
+                colorHistory[source2 + 1] * fade2 * 0.74;
+              trailColors[base2 + 2] =
+                colorHistory[source2 + 2] * fade2 * 0.74;
 
               vertexIndex++;
             }
@@ -2570,119 +2650,152 @@
         function updateDynamicLighting() {
           const p = averageParticleHeat();
 
-          const cold = new THREE.Color(0x78dfff);
-          const warm = new THREE.Color(0xff7040);
-
-          keyLight.color.copy(cold).lerp(new THREE.Color(0xffffff), 0.65);
-          rimLight.color.copy(cold).lerp(warm, p * 0.22);
-          warmLight.color.copy(new THREE.Color(0xff7a3d));
+          keyLight.color.copy(LIGHT_COLD_COLOR).lerp(WHITE_COLOR, 0.65);
+          rimLight.color.copy(LIGHT_COLD_COLOR).lerp(
+            LIGHT_WARM_COLOR,
+            p * 0.22
+          );
+          warmLight.color.copy(WARM_LIGHT_COLOR);
           warmLight.intensity = 14 + p * 10;
 
-          coreMaterial.emissive.copy(populationColor(tempColor2)).multiplyScalar(0.12 + p * 0.10);
+          coreMaterial.emissive
+            .copy(populationColor(tempColor2))
+            .multiplyScalar(0.12 + p * 0.10);
           coreMaterial.emissiveIntensity = 0.5;
 
           // Keep the shell mostly neutral so the particle colors carry the narrative.
-          boundary.material.color.copy(cold).lerp(new THREE.Color(0xffffff), 0.08 + p * 0.06);
-          shell.material.color.copy(cold).lerp(warm, p * 0.16);
+          boundary.material.color
+            .copy(LIGHT_COLD_COLOR)
+            .lerp(WHITE_COLOR, 0.08 + p * 0.06);
+          shell.material.color
+            .copy(LIGHT_COLD_COLOR)
+            .lerp(LIGHT_WARM_COLOR, p * 0.16);
         }
 
-        function stopCameraSpin() {
-          cameraSpin.active = false;
-          if (spinButton) {
-            spinButton.classList.remove("spinning");
-            spinButton.setAttribute("aria-label", "Spin the Singularity");
-            spinButton.title = "Spin";
+        function addCollisionSpinImpulse(type, collisionPoint) {
+          if (!started || !collisionSpinEnabled) return;
+
+          const dir = tempV3.copy(collisionPoint);
+          if (dir.lengthSq() < 1e-6) {
+            dir.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
+          }
+          dir.normalize();
+
+          // Derive a camera reaction from the collision position so the view
+          // feels like it is responding to where the impact occurred.
+          let azimuth = dir.x + dir.z * 0.45;
+          let polar = -dir.y * CAMERA_COLLISION_POLAR_SCALE + (Math.random() * 0.10 - 0.05);
+
+          if (Math.abs(azimuth) < 0.08) {
+            azimuth = (Math.random() < 0.5 ? -1 : 1) * 0.08;
+          }
+
+          const length = Math.hypot(azimuth, polar) || 1;
+          azimuth /= length;
+          polar /= length;
+
+          const impulse =
+            type === "split"
+              ? 0.34
+              : type === "merge"
+                ? 0.22
+                : type === "rebirth"
+                  ? 0.56
+                  : 0.28;
+
+          cameraCollisionSpin.azimuthVelocity += azimuth * impulse;
+          cameraCollisionSpin.polarVelocity += polar * impulse;
+
+          const magnitude = Math.hypot(
+            cameraCollisionSpin.azimuthVelocity,
+            cameraCollisionSpin.polarVelocity
+          );
+
+          if (magnitude > CAMERA_COLLISION_SPIN_MAX) {
+            const scale = CAMERA_COLLISION_SPIN_MAX / magnitude;
+            cameraCollisionSpin.azimuthVelocity *= scale;
+            cameraCollisionSpin.polarVelocity *= scale;
           }
         }
 
-        function startCameraSpin() {
-          if (!started) return;
+        function clearCollisionSpinImpulse() {
+          cameraCollisionSpin.azimuthVelocity = 0;
+          cameraCollisionSpin.polarVelocity = 0;
+        }
 
-          // Pick a random 2D orbit vector. Keep some azimuth component so
-          // the motion never reads as a mostly vertical tilt.
-          let azimuth = Math.random() * 2 - 1;
-          let polar = Math.random() * 1.4 - 0.7;
+        function updateSpinButton() {
+          if (!spinButton) return;
 
-          if (Math.abs(azimuth) < 0.35) {
-            azimuth = (azimuth < 0 ? -1 : 1) * 0.35;
-          }
+          spinButton.classList.toggle("spinOff", !collisionSpinEnabled);
+          spinButton.setAttribute(
+            "aria-label",
+            collisionSpinEnabled
+              ? "Turn collision spin off"
+              : "Turn collision spin on"
+          );
+          spinButton.title = collisionSpinEnabled
+            ? "Collision spin off"
+            : "Collision spin on";
+        }
 
-          const magnitude = Math.hypot(azimuth, polar) || 1;
+        function toggleCollisionSpin() {
+          collisionSpinEnabled = !collisionSpinEnabled;
+          updateSpinButton();
 
-          cameraSpin.azimuthComponent = azimuth / magnitude;
-          cameraSpin.polarComponent = polar / magnitude;
-          cameraSpin.duration = 2800 + Math.random() * 1400;
-          cameraSpin.speed = 0.78 + Math.random() * 0.22;
-          cameraSpin.startedAt = performance.now();
-          cameraSpin.active = true;
-
-          if (spinButton) {
-            spinButton.classList.add("spinning");
-            spinButton.setAttribute("aria-label", "Spin in progress");
-            spinButton.title = "Spinning…";
+          if (!collisionSpinEnabled) {
+            clearCollisionSpinImpulse();
           }
         }
 
-        function updateCamera(now, dt) {
+        function updateCamera(dt) {
           // No passive camera motion. OrbitControls owns all manual movement.
           controls.autoRotate = false;
           controls.target.set(0, 0, 0);
           controls.update();
 
-          if (!cameraSpin.active) return;
-
-          // Manual interaction always overrides the synthetic spin.
+          // Manual interaction overrides and clears collision-driven spin.
           if (orbiting || pointer.pressed || gesture.down) {
-            stopCameraSpin();
+            clearCollisionSpinImpulse();
             return;
           }
 
-          const elapsed = now - cameraSpin.startedAt;
-          const progress = THREE.MathUtils.clamp(
-            elapsed / cameraSpin.duration,
-            0,
-            1
+          // Manual orbit remains available while paused, but collision spin stays frozen.
+          if (paused) return;
+
+          const impulseMagnitude = Math.hypot(
+            cameraCollisionSpin.azimuthVelocity,
+            cameraCollisionSpin.polarVelocity
           );
 
-          if (progress >= 1) {
-            stopCameraSpin();
-            return;
-          }
-
-          // Smoothly accelerate and decelerate, like a deliberate finger drag.
-          const envelope = Math.sin(progress * Math.PI);
-          const phaseFactor =
-            celebration === "rebirth"
-              ? 0.65
-              : celebration === "max"
-                ? 0.82
-                : 1;
-
-          const step = cameraSpin.speed * envelope * phaseFactor * dt;
-
-          cameraSpinOffset.copy(camera.position).sub(controls.target);
-          cameraSpinSpherical.setFromVector3(cameraSpinOffset);
-
-          cameraSpinSpherical.theta +=
-            step * cameraSpin.azimuthComponent;
-          cameraSpinSpherical.phi +=
-            step * cameraSpin.polarComponent;
+          if (impulseMagnitude <= 0.0001) return;
 
           const minPhi = controls.minPolarAngle + CAMERA_SPIN_POLAR_MARGIN;
           const maxPhi = controls.maxPolarAngle - CAMERA_SPIN_POLAR_MARGIN;
 
-          if (cameraSpinSpherical.phi <= minPhi) {
-            cameraSpinSpherical.phi = minPhi;
-            cameraSpin.polarComponent = Math.abs(cameraSpin.polarComponent);
-          } else if (cameraSpinSpherical.phi >= maxPhi) {
-            cameraSpinSpherical.phi = maxPhi;
-            cameraSpin.polarComponent = -Math.abs(cameraSpin.polarComponent);
+          cameraOrbitOffset.copy(camera.position).sub(controls.target);
+          cameraOrbitSpherical.setFromVector3(cameraOrbitOffset);
+
+          cameraOrbitSpherical.theta += cameraCollisionSpin.azimuthVelocity * dt;
+          cameraOrbitSpherical.phi += cameraCollisionSpin.polarVelocity * dt;
+
+          if (cameraOrbitSpherical.phi <= minPhi) {
+            cameraOrbitSpherical.phi = minPhi;
+            cameraCollisionSpin.polarVelocity =
+              Math.abs(cameraCollisionSpin.polarVelocity) * 0.65;
+          } else if (cameraOrbitSpherical.phi >= maxPhi) {
+            cameraOrbitSpherical.phi = maxPhi;
+            cameraCollisionSpin.polarVelocity =
+              -Math.abs(cameraCollisionSpin.polarVelocity) * 0.65;
           }
 
-          cameraSpinSpherical.makeSafe();
-          cameraSpinOffset.setFromSpherical(cameraSpinSpherical);
-          camera.position.copy(controls.target).add(cameraSpinOffset);
+          cameraOrbitSpherical.makeSafe();
+          cameraOrbitOffset.setFromSpherical(cameraOrbitSpherical);
+          camera.position.copy(controls.target).add(cameraOrbitOffset);
           camera.lookAt(controls.target);
+
+          const decay = Math.exp(-CAMERA_COLLISION_SPIN_DECAY * dt);
+          cameraCollisionSpin.azimuthVelocity *= decay;
+          cameraCollisionSpin.polarVelocity *= decay;
         }
 
         function animate(now) {
@@ -2690,7 +2803,7 @@
           lastFrame = now;
           const dt = Math.min(rawDt, 0.035);
 
-          updateCamera(now, dt);
+          updateCamera(dt);
 
           if (!paused) {
             updateArenaRadius(now);
@@ -2728,7 +2841,7 @@
             pausedAt = performance.now();
 
             // Freeze active motion states immediately.
-            stopCameraSpin();
+            clearCollisionSpinImpulse();
             gesture.down = false;
             gesture.moved = false;
             pointer.pressed = false;
@@ -2743,7 +2856,6 @@
             if (celebrationStarted) celebrationStarted += pauseDelta;
             if (mergeShrinkStarted) mergeShrinkStarted += pauseDelta;
             if (postExplosionStarted) postExplosionStarted += pauseDelta;
-            if (cameraSpin.active) cameraSpin.startedAt += pauseDelta;
 
             lastFrame = resumeAt;
           }
@@ -2807,7 +2919,6 @@
           controls.enabled = true;
           controls.autoRotate = false;
           controls.autoRotateSpeed = 0;
-          stopCameraSpin();
 
           resetAt(new THREE.Vector3());
 
@@ -2896,7 +3007,7 @@
           spinButton.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
-            startCameraSpin();
+            toggleCollisionSpin();
           });
         }
 
@@ -2916,6 +3027,7 @@
           });
         }
 
+        updateSpinButton();
         updateSoundButton();
 
         renderer.domElement.addEventListener("pointerdown", (event) => {
@@ -2929,7 +3041,6 @@
           }
 
           setPointerFromEvent(event);
-          stopCameraSpin();
 
           pointer.pressed = true;
           orbiting = false;
